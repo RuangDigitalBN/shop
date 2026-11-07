@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Game Items Shop</title>
 <style>
-:root{--bg:#14110a;--card:#211c10;--line:#3a321c;--text:#f5efe0;--mute:#a89f88;--accent:#f4b833;--onaccent:#1a1300;--green:#25d366}
+:root{--bg:#14110a;--card:#211c10;--line:#3a321c;--text:#f5efe0;--mute:#a89f88;--accent:#f4b833;--onaccent:#1a1300;--green:#25d366;--dd:#f4b833;--ddtext:#1a1300}
 *{box-sizing:border-box}
 body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
 header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:5}
@@ -41,6 +41,8 @@ h2{font-size:1rem;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid 
 #foot{max-height:75%;overflow:auto}
 #after{font-size:.85rem;line-height:1.6}
 #after button{margin-top:8px;width:100%}
+#foot select{background:var(--dd);color:var(--ddtext);border-color:var(--dd);font-weight:600}
+#foot select option{background:var(--dd);color:var(--ddtext)}
 .total{display:flex;justify-content:space-between;font-weight:700}
 .empty{color:var(--mute);text-align:center;padding:36px 0}
 </style>
@@ -103,7 +105,7 @@ fetch("config.json?" + Date.now()).then(r => r.json()).then(c => {
   $("store").textContent = cfg.storeName; document.title = cfg.storeName;
   $("tag").textContent = cfg.tagline || "";
   const rs = document.documentElement.style;
-  const cmap = { bg: "--bg", card: "--card", line: "--line", text: "--text", mute: "--mute", accent: "--accent", accentText: "--onaccent", green: "--green" };
+  const cmap = { bg: "--bg", card: "--card", line: "--line", text: "--text", mute: "--mute", accent: "--accent", accentText: "--onaccent", green: "--green", dropdown: "--dd", dropdownText: "--ddtext" };
   Object.entries(cfg.colors || {}).forEach(([k, v]) => { if (v && cmap[k]) rs.setProperty(cmap[k], v); });
   if (cfg.logo) { $("logo").src = cfg.logo; $("logo").style.display = "block"; }
   if (cfg.banner) { $("banner").src = cfg.banner; $("banner").style.display = "block"; }
