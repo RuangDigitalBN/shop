@@ -1,11 +1,11 @@
 {
   "config": {
-    "storeName": "My Game Items Shop",
+    "storeName": "Ruang Digital",
     "tagline": "Instant delivery on game items",
     "currency": "B$",
-    "whatsappNumber": "6737654321",
+    "whatsappNumber": "6738660234",
     "payment": {
-      "enabled": true,
+      "enabled": false,
       "label": "Pay online",
       "url": "https://www.paypal.me/YOURNAME/{amount}"
     }
