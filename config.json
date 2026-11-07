@@ -38,7 +38,7 @@
   "Roblox": "roblox.jpg"
 },
   "payment": {
-    "enabled": true,
+    "enabled": false,
     "label": "Pay online",
     "url": "https://www.paypal.me/YOURNAME/{amount}"
   }
