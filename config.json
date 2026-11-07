@@ -1,7 +1,19 @@
 {
   "storeName": "Ruang Digital",
-  "tagline": "Skip the Scams. Elak Penipuan. Berbelanja dengan Yakin",
+  "tagline": "Skip the Scams. Shop with Confidence",
   "currency": "B$",
+  "colors": {
+  "bg": "#14110a",
+  "card": "#211c10",
+  "line": "#3a321c",
+  "text": "#f5efe0",
+  "mute": "#a89f88",
+  "accent": "#f4b833",
+  "accentText": "#1a1300",
+  "green": "#25d366"
+},
+  "logo": "",
+  "banner": "",
   "orderUrl": "https://script.google.com/macros/s/AKfycbw_N_sNtjL2owv_qsJEwJboJOs_d55hX_G-f8CoPk39TJIPp_1Bg457AWIdRs-Gly8m/exec",
   "closed": false,
   "closedMessage": "We are temporarily closed. Please check back soon.",
