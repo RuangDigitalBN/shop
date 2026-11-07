@@ -5,21 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Game Items Shop</title>
 <style>
-:root{--bg:#0f1117;--card:#1a1d27;--line:#2a2f3d;--text:#e8eaf0;--mute:#9097a8;--accent:#7c5cff;--green:#25d366}
+:root{--bg:#14110a;--card:#211c10;--line:#3a321c;--text:#f5efe0;--mute:#a89f88;--accent:#f4b833;--onaccent:#1a1300;--green:#25d366}
 *{box-sizing:border-box}
 body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
 header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:5}
-h1{margin:0;font-size:1.15rem}
+h1{margin:0;font-size:1.15rem;color:var(--accent)}
 header p{margin:2px 0 0;color:var(--mute);font-size:.8rem}
-button{font:inherit;cursor:pointer;border:0;border-radius:8px;padding:9px 14px;color:#fff;background:var(--accent)}
+button{font:inherit;cursor:pointer;border:0;border-radius:8px;padding:9px 14px;color:var(--onaccent);background:var(--accent)}
 button:disabled{opacity:.4;cursor:not-allowed}
 .wa{background:var(--green);color:#052b12;font-weight:600}
 .ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
 main{max-width:1000px;margin:0 auto;padding:16px}
 input{width:100%;background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:10px;font:inherit;margin-bottom:10px}
 #tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:6px}
-#tabs button{background:var(--card);border:1px solid var(--line);white-space:nowrap;border-radius:99px}
-#tabs button.on{background:var(--accent);border-color:var(--accent)}
+#tabs button{background:var(--card);color:var(--text);border:1px solid var(--line);white-space:nowrap;border-radius:99px}
+#tabs button.on{background:var(--accent);color:var(--onaccent);border-color:var(--accent)}
 h2{font-size:1rem;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
@@ -28,7 +28,7 @@ h2{font-size:1rem;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid 
 .body{padding:10px;display:flex;flex-direction:column;gap:5px;flex:1}
 .name{font-weight:600;font-size:.95rem}
 .desc{color:var(--mute);font-size:.8rem;flex:1}
-.price{font-weight:700}
+.price{font-weight:700;color:var(--accent)}
 #drawer{position:fixed;top:0;right:0;height:100%;width:min(380px,100%);background:var(--card);border-left:1px solid var(--line);transform:translateX(100%);transition:.25s;display:flex;flex-direction:column;z-index:10}
 #drawer.open{transform:none}
 .top{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
@@ -47,9 +47,10 @@ h2{font-size:1rem;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid 
 </head>
 <body>
 <header>
-  <div><h1 id="store">Shop</h1><p id="tag"></p></div>
+  <div style="display:flex;align-items:center;gap:10px"><img id="logo" alt="" style="display:none;height:40px;border-radius:6px"><div><h1 id="store">Shop</h1><p id="tag"></p></div></div>
   <button id="cartBtn">Cart (0)</button>
 </header>
+<img id="banner" alt="" style="display:none;width:100%;max-height:220px;object-fit:cover">
 <main>
   <input id="q" placeholder="Search items...">
   <div id="tabs"></div>
@@ -101,6 +102,11 @@ fetch("config.json?" + Date.now()).then(r => r.json()).then(c => {
 }).then(csv => {
   $("store").textContent = cfg.storeName; document.title = cfg.storeName;
   $("tag").textContent = cfg.tagline || "";
+  const rs = document.documentElement.style;
+  const cmap = { bg: "--bg", card: "--card", line: "--line", text: "--text", mute: "--mute", accent: "--accent", accentText: "--onaccent", green: "--green" };
+  Object.entries(cfg.colors || {}).forEach(([k, v]) => { if (v && cmap[k]) rs.setProperty(cmap[k], v); });
+  if (cfg.logo) { $("logo").src = cfg.logo; $("logo").style.display = "block"; }
+  if (cfg.banner) { $("banner").src = cfg.banner; $("banner").style.display = "block"; }
   if (cfg.closed) {
     const b = document.createElement("div");
     b.style.cssText = "background:#5a1f1f;color:#ffd9d9;padding:12px 16px;text-align:center";
