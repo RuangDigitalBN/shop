@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game Items Shop</title>
+<style>
+:root{--bg:#0f1117;--card:#1a1d27;--line:#2a2f3d;--text:#e8eaf0;--mute:#9097a8;--accent:#7c5cff;--green:#25d366}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:5}
+h1{margin:0;font-size:1.15rem}
+header p{margin:2px 0 0;color:var(--mute);font-size:.8rem}
+button{font:inherit;cursor:pointer;border:0;border-radius:8px;padding:9px 14px;color:#fff;background:var(--accent)}
+button:disabled{opacity:.4;cursor:not-allowed}
+.wa{background:var(--green);color:#052b12;font-weight:600}
+.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+main{max-width:1000px;margin:0 auto;padding:16px}
+input{width:100%;background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:10px;font:inherit;margin-bottom:10px}
+#tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:6px}
+#tabs button{background:var(--card);border:1px solid var(--line);white-space:nowrap;border-radius:99px}
+#tabs button.on{background:var(--accent);border-color:var(--accent)}
+h2{font-size:1rem;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.img{aspect-ratio:16/10;background:linear-gradient(135deg,#2b2350,#16202e);display:flex;align-items:center;justify-content:center;font-size:1.8rem}
+.img img{width:100%;height:100%;object-fit:cover}
+.body{padding:10px;display:flex;flex-direction:column;gap:5px;flex:1}
+.name{font-weight:600;font-size:.95rem}
+.desc{color:var(--mute);font-size:.8rem;flex:1}
+.price{font-weight:700}
+#drawer{position:fixed;top:0;right:0;height:100%;width:min(380px,100%);background:var(--card);border-left:1px solid var(--line);transform:translateX(100%);transition:.25s;display:flex;flex-direction:column;z-index:10}
+#drawer.open{transform:none}
+.top{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+#lines{flex:1;overflow:auto;padding:8px 16px}
+.line{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:.9rem}
+.qty{display:flex;align-items:center;gap:6px}
+.qty button{padding:2px 9px}
+#foot{padding:14px 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+#foot input{margin:0}
+.total{display:flex;justify-content:space-between;font-weight:700}
+.empty{color:var(--mute);text-align:center;padding:36px 0}
+</style>
+</head>
+<body>
+<header>
+  <div><h1 id="store">Shop</h1><p id="tag"></p></div>
+  <button id="cartBtn">Cart (0)</button>
+</header>
+<main>
+  <input id="q" placeholder="Search items...">
+  <div id="tabs"></div>
+  <div id="list"></div>
+</main>
+<aside id="drawer">
+  <div class="top"><strong>Your cart</strong><button class="ghost" id="close">Close</button></div>
+  <div id="lines"></div>
+  <div id="foot">
+    <input id="gameId" placeholder="Your game ID / username (optional)">
+    <div class="total"><span>Total</span><span id="total"></span></div>
+    <button class="wa" id="waBtn">Order via WhatsApp</button>
+    <button id="payBtn">Pay online</button>
+  </div>
+</aside>
+<script>
+let cfg = {}, items = [], games = [], active = "", cart = {};
+try { cart = JSON.parse(localStorage.getItem("cart") || "{}"); } catch (e) {}
+const $ = id => document.getElementById(id);
+const money = n => cfg.currency + Number(n).toFixed(2);
+const save = () => { try { localStorage.setItem("cart", JSON.stringify(cart)); } catch (e) {} };
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function parseCSV(text) {
+  text = text.replace(/^\uFEFF/, "");
+  const rows = []; let row = [], f = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === ",") { row.push(f); f = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && text[i + 1] === "\n") i++; row.push(f); rows.push(row); row = []; f = ""; }
+    else f += c;
+  }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows;
+}
+
+fetch("config.json?" + Date.now()).then(r => r.json()).then(c => {
+  cfg = c;
+  const u = cfg.sheetUrl
+    ? cfg.sheetUrl + (cfg.sheetUrl.includes("?") ? "&" : "?") + "t=" + Date.now()
+    : "products.csv?" + Date.now();
+  return fetch(u).then(r => r.text());
+}).then(csv => {
+  $("store").textContent = cfg.storeName; document.title = cfg.storeName;
+  $("tag").textContent = cfg.tagline || "";
+  if (cfg.closed) {
+    const b = document.createElement("div");
+    b.style.cssText = "background:#5a1f1f;color:#ffd9d9;padding:12px 16px;text-align:center";
+    b.textContent = cfg.closedMessage || "We are temporarily closed. Please check back soon.";
+    document.querySelector("header").after(b);
+  }
+  if (cfg.payment && cfg.payment.enabled) $("payBtn").textContent = cfg.payment.label || "Pay online";
+  else $("payBtn").style.display = "none";
+  const rows = parseCSV(csv).filter(r => r.some(x => x.trim()));
+  const head = rows.shift().map(h => h.trim().toLowerCase());
+  const col = n => head.indexOf(n);
+  items = rows.map(r => {
+    const g = (r[col("game")] || "").trim(), n = (r[col("item")] || "").trim();
+    return {
+      id: g + "|" + n, game: g, name: n,
+      price: parseFloat((r[col("price")] || "").replace(/[^0-9.]/g, "")) || 0,
+      image: (r[col("image")] || "").trim(),
+      description: (r[col("description")] || "").trim(),
+      soldOut: /^(y|yes|true|1)$/i.test((r[col("soldout")] || "").trim())
+    };
+  }).filter(i => i.game && i.name);
+  games = [...new Set(items.map(i => i.game))];
+  Object.keys(cart).forEach(id => { if (!items.find(i => i.id === id && !i.soldOut)) delete cart[id]; });
+  drawTabs(); render(); drawCart();
+}).catch(() => { $("list").innerHTML = '<p class="empty">Could not load the shop files.</p>'; });
+
+function drawTabs() {
+  $("tabs").innerHTML = ["", ...games].map(g =>
+    `<button class="${g === active ? "on" : ""}" data-g="${esc(g)}">${g ? esc(g) : "All"}</button>`).join("");
+  $("tabs").querySelectorAll("button").forEach(b => b.onclick = () => { active = b.dataset.g; drawTabs(); render(); });
+}
+function render() {
+  const q = $("q").value.toLowerCase();
+  const html = games.filter(g => !active || g === active).map(g => {
+    const list = items.map((it, idx) => ({ it, idx })).filter(({ it }) => it.game === g && it.name.toLowerCase().includes(q))
+      .sort((a, b) => a.it.price - b.it.price);
+    if (!list.length) return "";
+    return `<h2>${esc(g)}</h2><div class="grid">` + list.map(({ it, idx }) => `
+      <div class="card">
+        <div class="img">${it.image ? `<img src="${esc(it.image)}" alt="" loading="lazy">` : "🎮"}</div>
+        <div class="body">
+          <div class="name">${esc(it.name)}</div>
+          <div class="desc">${esc(it.description)}</div>
+          <div class="price">${money(it.price)}</div>
+          <button ${it.soldOut || cfg.closed ? "disabled" : ""} onclick="add(${idx})">${cfg.closed ? "Closed" : it.soldOut ? "Sold out" : "Add to cart"}</button>
+        </div>
+      </div>`).join("") + "</div>";
+  }).join("");
+  $("list").innerHTML = html || '<p class="empty">No items found.</p>';
+}
+function add(idx) { const id = items[idx].id; cart[id] = (cart[id] || 0) + 1; save(); drawCart(); $("drawer").classList.add("open"); }
+function chg(idx, d) { const id = items[idx].id; cart[id] = (cart[id] || 0) + d; if (cart[id] <= 0) delete cart[id]; save(); drawCart(); }
+function lines() { return items.map((item, idx) => ({ item, idx, n: cart[item.id] || 0 })).filter(l => l.n); }
+function total() { return lines().reduce((s, l) => s + l.item.price * l.n, 0); }
+function drawCart() {
+  const L = lines();
+  $("cartBtn").textContent = `Cart (${L.reduce((s, l) => s + l.n, 0)})`;
+  $("lines").innerHTML = L.map(({ item, idx, n }) => `
+    <div class="line"><div><div>${esc(item.name)}</div><small style="color:var(--mute)">${esc(item.game)} · ${money(item.price)}</small></div>
+    <div class="qty"><button class="ghost" onclick="chg(${idx},-1)">−</button>${n}<button class="ghost" onclick="chg(${idx},1)">+</button></div></div>`).join("") || '<div class="empty">Your cart is empty.</div>';
+  $("total").textContent = money(total());
+  $("waBtn").disabled = $("payBtn").disabled = !L.length || !!cfg.closed;
+}
+function summary() {
+  const gid = $("gameId").value.trim();
+  let t = `Hi, I'd like to order from ${cfg.storeName}:\n\n`;
+  lines().forEach(({ item, n }, i) => t += `${i + 1}. ${item.name} (${item.game}) x${n} - ${money(item.price * n)}\n`);
+  t += `\nTotal: ${money(total())}`;
+  if (gid) t += `\nGame ID: ${gid}`;
+  return t;
+}
+$("waBtn").onclick = () => window.open(`https://wa.me/${cfg.whatsappNumber}?text=${encodeURIComponent(summary())}`, "_blank");
+$("payBtn").onclick = () => window.open(cfg.payment.url.replace("{amount}", total().toFixed(2)), "_blank");
+$("cartBtn").onclick = () => $("drawer").classList.add("open");
+$("close").onclick = () => $("drawer").classList.remove("open");
+$("q").oninput = render;
+</script>
+</body>
+</html>

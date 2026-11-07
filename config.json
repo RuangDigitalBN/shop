@@ -1,0 +1,14 @@
+{
+  "storeName": "My Game Items Shop",
+  "tagline": "Fast delivery on game items",
+  "currency": "B$",
+  "closed": false,
+  "closedMessage": "We are temporarily closed. Please check back soon.",
+  "whatsappNumber": "6737654321",
+  "sheetUrl": "PASTE-YOUR-GOOGLE-SHEET-CSV-LINK-HERE",
+  "payment": {
+    "enabled": true,
+    "label": "Pay online",
+    "url": "https://www.paypal.me/YOURNAME/{amount}"
+  }
+}
