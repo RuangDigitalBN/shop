@@ -1,11 +1,11 @@
 {
   "storeName": "Ruang Digital",
-  "tagline": "Fast delivery on game items",
+  "tagline": "Skip the Scams. Elak Penipuan. Berbelanja dengan Yakin",
   "currency": "B$",
-  "orderUrl": "PASTE-YOUR-APPS-SCRIPT-WEB-APP-URL-HERE",
-  "closed": true,
+  "orderUrl": "https://script.google.com/macros/s/AKfycbwCpkewZl_3tUzuinKz-Ukvq3dSvbn7ZmfwyLPLrX-a2ZrtYhZrg80_LX_x9cjA3p1e/exec",
+  "closed": false,
   "closedMessage": "We are temporarily closed. Please check back soon.",
-  "whatsappNumber": "6737654321",
+  "whatsappNumber": "6738660234",
   "sheetUrl": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRl2225HJ-0vjxHDUBOealbu4fGqQJqbUandctavlQYMQ7K_v3EwbygXkj6MaqTMT-VZRpX7tt1SmmZ/pub?gid=1735583609&single=true&output=csv",
   "bank": {
     "enabled": true,
