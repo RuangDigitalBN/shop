@@ -2,7 +2,7 @@
   "storeName": "My Game Items Shop",
   "tagline": "Fast delivery on game items",
   "currency": "B$",
-  "closed": false,
+  "closed": true,
   "closedMessage": "We are temporarily closed. Please check back soon.",
   "whatsappNumber": "6737654321",
   "sheetUrl": "PASTE-YOUR-GOOGLE-SHEET-CSV-LINK-HERE",
