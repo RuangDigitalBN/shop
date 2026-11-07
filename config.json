@@ -1,11 +1,11 @@
 {
-  "storeName": "My Game Items Shop",
+  "storeName": "Ruang Digital",
   "tagline": "Fast delivery on game items",
   "currency": "B$",
   "closed": true,
   "closedMessage": "We are temporarily closed. Please check back soon.",
-  "whatsappNumber": "6737654321",
-  "sheetUrl": "PASTE-YOUR-GOOGLE-SHEET-CSV-LINK-HERE",
+  "whatsappNumber": "6738660234",
+  "sheetUrl": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRl2225HJ-0vjxHDUBOealbu4fGqQJqbUandctavlQYMQ7K_v3EwbygXkj6MaqTMT-VZRpX7tt1SmmZ/pub?gid=1735583609&single=true&output=csv",
   "payment": {
     "enabled": true,
     "label": "Pay online",
