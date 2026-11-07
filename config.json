@@ -33,6 +33,10 @@
     "Mobile Legends": ["User ID", "Server ID"],
     "Roblox": ["Roblox username"]
   },
+  "gameImages": {
+  "Mobile Legends": "mlbb.jpg",
+  "Roblox": "roblox.png"
+},
   "payment": {
     "enabled": true,
     "label": "Pay online",
