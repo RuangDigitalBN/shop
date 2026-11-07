@@ -41,6 +41,7 @@ h2{font-size:1rem;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid 
 #foot{max-height:75%;overflow:auto}
 #after{font-size:.85rem;line-height:1.6}
 #after button{margin-top:8px;width:100%}
+#after .cp{width:auto;margin:0 0 0 8px;padding:3px 10px;font-size:.8rem}
 #foot select{background:var(--dd);color:var(--ddtext);border-color:var(--dd);font-weight:600}
 #foot select option{background:var(--dd);color:var(--ddtext)}
 .total{display:flex;justify-content:space-between;font-weight:700}
@@ -109,12 +110,13 @@ fetch("config.json?" + Date.now()).then(r => r.json()).then(c => {
   Object.entries(cfg.colors || {}).forEach(([k, v]) => { if (v && cmap[k]) rs.setProperty(cmap[k], v); });
   if (cfg.logo) { $("logo").src = cfg.logo; $("logo").style.display = "block"; }
   if (cfg.banner) { $("banner").src = cfg.banner; $("banner").style.display = "block"; }
-  if (cfg.closed) {
+  const showClosed = () => {
+    if (!cfg.closed) return;
     const b = document.createElement("div");
     b.style.cssText = "background:#5a1f1f;color:#ffd9d9;padding:12px 16px;text-align:center";
     b.textContent = cfg.closedMessage || "We are temporarily closed. Please check back soon.";
     document.querySelector("header").after(b);
-  }
+  };
   methods = [];
   if (cfg.bank && cfg.bank.enabled) methods.push(["bank", "Bank transfer"]);
   if (cfg.payment && cfg.payment.enabled) methods.push(["online", cfg.payment.label || "Pay online"]);
@@ -132,6 +134,13 @@ fetch("config.json?" + Date.now()).then(r => r.json()).then(c => {
       soldOut: /^(y|yes|true|1)$/i.test((r[col("soldout")] || "").trim())
     };
   }).filter(i => i.game && i.name);
+  const st = items.find(i => i.game.toLowerCase() === "shop status");
+  if (st) {
+    cfg.closed = /^(closed|close|yes|true)$/i.test(st.name);
+    if (st.description) cfg.closedMessage = st.description;
+    items = items.filter(i => i !== st);
+  }
+  showClosed();
   games = [...new Set(items.map(i => i.game))];
   Object.keys(cart).forEach(id => { if (!items.find(i => i.id === id && !i.soldOut)) delete cart[id]; });
   drawTabs(); render(); drawCart();
@@ -184,6 +193,20 @@ function summary() {
   return t;
 }
 let info = {}, orderId = "", methods = [];
+document.addEventListener("click", e => {
+  const t = e.target.closest(".cp");
+  if (!t) return;
+  const v = t.dataset.copy;
+  const done = () => { t.textContent = "Copied!"; setTimeout(() => { t.textContent = "Copy"; }, 1500); };
+  const fb = () => {
+    const a = document.createElement("textarea");
+    a.value = v; document.body.appendChild(a); a.select();
+    try { document.execCommand("copy"); done(); } catch (x) {}
+    a.remove();
+  };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(v).then(done).catch(fb);
+  else fb();
+});
 const gimg = (g, px) => (cfg.gameImages && cfg.gameImages[g]) ? `<img src="${esc(cfg.gameImages[g])}" alt="" style="height:${px}px;width:${px}px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px">` : "";
 const fieldsFor = g => (cfg.gameFields && cfg.gameFields[g]) || ["Game ID / Username"];
 function details() {
@@ -222,7 +245,7 @@ $("orderBtn").onclick = () => {
   let h = `<b>Order ${orderId} received.</b><br>`;
   if (method === "bank") {
     const b = cfg.bank;
-    h += `Please transfer <b>${money(order.total)}</b> to:<br>Bank: <b>${esc(b.bankName)}</b><br>Account name: <b>${esc(b.accountName)}</b><br>Account no: <b>${esc(b.accountNumber)}</b><br>Reference: <b>${orderId}</b><br>${esc(b.note || "")}<br><button class="wa" onclick="window.open('${wa("Hi, I have paid for order " + orderId + ". Sending my proof of payment.")}')">Send proof on WhatsApp</button>`;
+    h += `Please transfer <b>${money(order.total)}</b> to:<br>Bank: <b>${esc(b.bankName)}</b><br>Account name: <b>${esc(b.accountName)}</b><br>Account no: <b>${esc(b.accountNumber)}</b> <button type="button" class="cp" data-copy="${esc(b.accountNumber)}">Copy</button><br>Reference: <b>${orderId}</b> <button type="button" class="cp" data-copy="${orderId}">Copy</button><br>${esc(b.note || "")}<br><button class="wa" onclick="window.open('${wa("Hi, I have paid for order " + orderId + ". Sending my proof of payment.")}')">Send proof on WhatsApp</button>`;
   } else if (method === "online") h += "Complete your payment in the new tab. We start your order once payment is confirmed.";
   else h += "WhatsApp has opened so you can send your order.";
   $("after").innerHTML = h;
