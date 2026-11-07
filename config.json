@@ -1,0 +1,29 @@
+{
+  "storeName": "My Game Items Shop",
+  "tagline": "Fast delivery on game items",
+  "currency": "B$",
+  "orderUrl": "PASTE-YOUR-APPS-SCRIPT-WEB-APP-URL-HERE",
+  "closed": false,
+  "closedMessage": "We are temporarily closed. Please check back soon.",
+  "whatsappNumber": "6737654321",
+  "sheetUrl": "PASTE-YOUR-GOOGLE-SHEET-CSV-LINK-HERE",
+  "bank": {
+    "enabled": true,
+    "bankName": "Your Bank",
+    "accountName": "Your Full Name",
+    "accountNumber": "0000000000",
+    "note": "Use the order number as the transfer reference."
+  },
+  "gameMethods": {
+    "Roblox": ["whatsapp"]
+  },
+  "gameFields": {
+    "Mobile Legends": ["User ID", "Server ID"],
+    "Roblox": ["Roblox username"]
+  },
+  "payment": {
+    "enabled": true,
+    "label": "Pay online",
+    "url": "https://www.paypal.me/YOURNAME/{amount}"
+  }
+}
