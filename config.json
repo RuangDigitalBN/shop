@@ -32,11 +32,11 @@
     "Roblox": ["whatsapp"]
   },
   "gameFields": {
-    "Mobile Legends": ["User ID", "Server ID"],
+    "Mobile Legends (Global)": ["User ID", "Server ID"],
     "Roblox": ["Roblox username"]
   },
   "gameImages": {
-  "Mobile Legends": "mlbb.jpg",
+  "Mobile Legends (Global)": "mlbb.jpg",
   "Roblox": "roblox.jpg"
 },
   "payment": {
