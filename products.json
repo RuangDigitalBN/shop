@@ -1,0 +1,48 @@
+{
+  "config": {
+    "storeName": "My Game Items Shop",
+    "tagline": "Instant delivery on game items",
+    "currency": "B$",
+    "whatsappNumber": "6737654321",
+    "payment": {
+      "enabled": true,
+      "label": "Pay online",
+      "url": "https://www.paypal.me/YOURNAME/{amount}"
+    }
+  },
+  "items": [
+    {
+      "id": "ml-86-diamonds",
+      "name": "86 Diamonds",
+      "game": "Mobile Legends",
+      "price": 2.5,
+      "image": "",
+      "description": "Top up delivered to your game ID."
+    },
+    {
+      "id": "ml-172-diamonds",
+      "name": "172 Diamonds",
+      "game": "Mobile Legends",
+      "price": 4.8,
+      "image": "",
+      "description": "Top up delivered to your game ID."
+    },
+    {
+      "id": "genshin-welkin",
+      "name": "Blessing of the Welkin Moon",
+      "game": "Genshin Impact",
+      "price": 7,
+      "image": "",
+      "description": "30 days of daily Primogems."
+    },
+    {
+      "id": "valorant-1000vp",
+      "name": "1000 VP",
+      "game": "Valorant",
+      "price": 12,
+      "image": "",
+      "description": "Valorant Points gift card.",
+      "soldOut": true
+    }
+  ]
+}
