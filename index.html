@@ -21,9 +21,9 @@ input{width:100%;background:var(--card);border:1px solid var(--line);color:var(-
 #tabs button{background:var(--card);color:var(--text);border:1px solid var(--line);white-space:nowrap;border-radius:99px}
 #tabs button.on{background:var(--accent);color:var(--onaccent);border-color:var(--accent)}
 h2{font-size:1rem;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cw,170px),1fr));gap:12px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
-.img{aspect-ratio:16/10;background:linear-gradient(135deg,#3a2f12,#1b150a);display:flex;align-items:center;justify-content:center;font-size:1.8rem}
+.img{aspect-ratio:var(--ratio,16/10);background:linear-gradient(135deg,#3a2f12,#1b150a);display:flex;align-items:center;justify-content:center;font-size:1.8rem}
 .img img{width:100%;height:100%;object-fit:cover}
 .body{padding:10px;display:flex;flex-direction:column;gap:5px;flex:1}
 .name{font-weight:600;font-size:.95rem}
@@ -55,6 +55,9 @@ try {
   var c = JSON.parse(localStorage.getItem("colors") || "{}");
   var m = { bg: "--bg", card: "--card", line: "--line", text: "--text", mute: "--mute", accent: "--accent", accentText: "--onaccent", green: "--green", dropdown: "--dd", dropdownText: "--ddtext", error: "--err" };
   for (var k in c) if (c[k] && m[k]) document.documentElement.style.setProperty(m[k], c[k]);
+  var l = JSON.parse(localStorage.getItem("layout") || "{}");
+  if (l.cw) document.documentElement.style.setProperty("--cw", l.cw + "px");
+  if (l.ratio) document.documentElement.style.setProperty("--ratio", l.ratio);
 } catch (e) {}
 </script>
 </head>
@@ -91,6 +94,23 @@ const money = n => cfg.currency + Number(n).toFixed(2);
 const save = () => { try { localStorage.setItem("cart", JSON.stringify(cart)); } catch (e) {} };
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
+// Wording shown to customers after they place an order. Any of these can be changed in config.json under "texts".
+const TX = {
+  orderReceived: "Order {order} received.",
+  bankIntro: "Please transfer {amount} to:",
+  bankLabel: "Bank",
+  accountNameLabel: "Account name",
+  accountNumberLabel: "Account no",
+  copy: "Copy",
+  copied: "Copied!",
+  proofButton: "Send proof on WhatsApp",
+  proofMessage: "Hi, I have paid for order {order}. Sending my proof of payment.",
+  onlineMessage: "Complete your payment in the new tab. We start your order once payment is confirmed.",
+  whatsappMessage: "WhatsApp has opened so you can send your order."
+};
+const raw = k => String((cfg.texts && cfg.texts[k]) || TX[k]);
+const tx = (k, v) => esc(raw(k)).replace(/\{(\w+)\}/g, (m, n) => (v && n in v) ? v[n] : m);
+
 function parseCSV(text) {
   text = text.replace(/^\uFEFF/, "");
   const rows = []; let row = [], f = "", q = false;
@@ -119,6 +139,11 @@ fetch("config.json?" + Date.now()).then(r => r.json()).then(c => {
   const cmap = { bg: "--bg", card: "--card", line: "--line", text: "--text", mute: "--mute", accent: "--accent", accentText: "--onaccent", green: "--green", dropdown: "--dd", dropdownText: "--ddtext", error: "--err" };
   Object.entries(cfg.colors || {}).forEach(([k, v]) => { if (v && cmap[k]) rs.setProperty(cmap[k], v); });
   try { localStorage.setItem("colors", JSON.stringify(cfg.colors || {})); } catch (e) {}
+  const lay = cfg.layout || {}, cw = Number(lay.cardWidth), ratio = String(lay.imageRatio || "").trim();
+  const okLay = { cw: cw >= 110 && cw <= 400 ? cw : 0, ratio: /^\d+(\.\d+)?\s*\/\s*\d+(\.\d+)?$/.test(ratio) ? ratio : "" };
+  if (okLay.cw) rs.setProperty("--cw", okLay.cw + "px"); else rs.removeProperty("--cw");
+  if (okLay.ratio) rs.setProperty("--ratio", okLay.ratio); else rs.removeProperty("--ratio");
+  try { localStorage.setItem("layout", JSON.stringify(okLay)); } catch (e) {}
   if (cfg.logo) { $("logo").src = cfg.logo; $("logo").style.display = "block"; }
   if (cfg.banner) { $("banner").src = cfg.banner; $("banner").style.display = "block"; }
   const showClosed = () => {
@@ -210,7 +235,7 @@ document.addEventListener("click", e => {
   const t = e.target.closest(".cp");
   if (!t) return;
   const v = t.dataset.copy;
-  const done = () => { t.textContent = "Copied!"; setTimeout(() => { t.textContent = "Copy"; }, 1500); };
+  const done = () => { t.textContent = raw("copied"); setTimeout(() => { t.textContent = raw("copy"); }, 1500); };
   const fb = () => {
     const a = document.createElement("textarea");
     a.value = v; document.body.appendChild(a); a.select();
@@ -271,13 +296,13 @@ $("orderBtn").onclick = () => {
     ["WhatsApp", esc(order.contact)],
     ...details().map(d => { const i = d.indexOf(": "); return [esc(d.slice(0, i)), esc(d.slice(i + 2))]; })
   ];
-  let h = `<b>Order ${orderId} received.</b><div style="margin:8px 0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;color:var(--mute)">` +
+  let h = `<b>${tx("orderReceived", { order: esc(orderId) })}</b><div style="margin:8px 0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;color:var(--mute)">` +
     rows.map(r => `${r[0]}: <span style="color:var(--text)">${r[1]}</span>`).join("<br>") + "</div>";
   if (method === "bank") {
     const b = cfg.bank;
-    h += `Please transfer <b>${money(order.total)}</b> to:<br>Bank: <b>${esc(b.bankName)}</b><br>${b.accountName && b.accountName.trim() && b.accountName.trim() !== "-" ? `Account name: <b>${esc(b.accountName)}</b><br>` : ""}Account no: <b>${esc(b.accountNumber)}</b> <button type="button" class="cp" data-copy="${esc(b.accountNumber)}">Copy</button><br>Reference: <b>${orderId}</b> <button type="button" class="cp" data-copy="${orderId}">Copy</button><br>${esc(b.note || "")}<br><button class="wa" onclick="window.open('${wa("Hi, I have paid for order " + orderId + ". Sending my proof of payment.\n\n" + text).replace(/'/g, "%27")}')">Send proof on WhatsApp</button>`;
-  } else if (method === "online") h += "Complete your payment in the new tab. We start your order once payment is confirmed.";
-  else h += "WhatsApp has opened so you can send your order.";
+    h += `${tx("bankIntro", { amount: "<b>" + esc(money(order.total)) + "</b>" })}<br>${tx("bankLabel")}: <b>${esc(b.bankName)}</b><br>${b.accountName && b.accountName.trim() && b.accountName.trim() !== "-" ? `${tx("accountNameLabel")}: <b>${esc(b.accountName)}</b><br>` : ""}${tx("accountNumberLabel")}: <b>${esc(b.accountNumber)}</b> <button type="button" class="cp" data-copy="${esc(b.accountNumber)}">${tx("copy")}</button><br>${esc(b.referenceLabel || "Order number")}: <b>${orderId}</b> <button type="button" class="cp" data-copy="${orderId}">${tx("copy")}</button><br>${esc(b.note || "")}<br><button class="wa" onclick="window.open('${wa(raw("proofMessage").split("{order}").join(orderId) + "\n\n" + text).replace(/'/g, "%27")}')">${tx("proofButton")}</button>`;
+  } else if (method === "online") h += tx("onlineMessage");
+  else h += tx("whatsappMessage");
   $("after").innerHTML = h;
   toggleForm(true);
   cart = {}; save(); drawCart();
