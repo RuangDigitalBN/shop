@@ -18,7 +18,8 @@ button:disabled{opacity:.4;cursor:not-allowed}
 main{max-width:1000px;margin:0 auto;padding:16px}
 input{width:100%;background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:10px;font:inherit;margin-bottom:10px}
 #tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:6px}
-#tabs button{background:var(--card);color:var(--text);border:1px solid var(--line);white-space:nowrap;border-radius:99px}
+#tabs button{background:var(--card);color:var(--text);border:1px solid var(--line);white-space:nowrap;border-radius:99px;font-size:var(--tabfs,16px);padding:.5em .9em}
+#tabs button img{height:1.25em!important;width:1.25em!important}
 #tabs button.on{background:var(--accent);color:var(--onaccent);border-color:var(--accent)}
 h2{font-size:1rem;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cw,170px),1fr));gap:12px}
@@ -58,6 +59,7 @@ try {
   var l = JSON.parse(localStorage.getItem("layout") || "{}");
   if (l.cw) document.documentElement.style.setProperty("--cw", l.cw + "px");
   if (l.ratio) document.documentElement.style.setProperty("--ratio", l.ratio);
+  if (l.tfs) document.documentElement.style.setProperty("--tabfs", l.tfs + "px");
 } catch (e) {}
 </script>
 </head>
@@ -139,8 +141,10 @@ fetch("config.json?" + Date.now()).then(r => r.json()).then(c => {
   const cmap = { bg: "--bg", card: "--card", line: "--line", text: "--text", mute: "--mute", accent: "--accent", accentText: "--onaccent", green: "--green", dropdown: "--dd", dropdownText: "--ddtext", error: "--err" };
   Object.entries(cfg.colors || {}).forEach(([k, v]) => { if (v && cmap[k]) rs.setProperty(cmap[k], v); });
   try { localStorage.setItem("colors", JSON.stringify(cfg.colors || {})); } catch (e) {}
-  const lay = cfg.layout || {}, cw = Number(lay.cardWidth), ratio = String(lay.imageRatio || "").trim();
+  const lay = cfg.layout || {}, cw = Number(lay.cardWidth), ratio = String(lay.imageRatio || "").trim(), tf = Number(lay.tabFontSize);
   const okLay = { cw: cw >= 110 && cw <= 400 ? cw : 0, ratio: /^\d+(\.\d+)?\s*\/\s*\d+(\.\d+)?$/.test(ratio) ? ratio : "" };
+  okLay.tfs = tf >= 10 && tf <= 22 ? tf : 0;
+  if (okLay.tfs) rs.setProperty("--tabfs", okLay.tfs + "px"); else rs.removeProperty("--tabfs");
   if (okLay.cw) rs.setProperty("--cw", okLay.cw + "px"); else rs.removeProperty("--cw");
   if (okLay.ratio) rs.setProperty("--ratio", okLay.ratio); else rs.removeProperty("--ratio");
   try { localStorage.setItem("layout", JSON.stringify(okLay)); } catch (e) {}
@@ -156,7 +160,7 @@ fetch("config.json?" + Date.now()).then(r => r.json()).then(c => {
   methods = [];
   if (cfg.bank && cfg.bank.enabled) methods.push(["bank", "Bank transfer"]);
   if (cfg.payment && cfg.payment.enabled) methods.push(["online", cfg.payment.label || "Pay online"]);
-  methods.push(["whatsapp", "Order via WhatsApp (for confirmation)"]);
+  methods.push(["whatsapp", "Order via WhatsApp (we confirm first)"]);
   const rows = parseCSV(csv).filter(r => r.some(x => x.trim()));
   const head = rows.shift().map(h => h.trim().toLowerCase());
   const col = n => head.indexOf(n);
