@@ -15,6 +15,16 @@
   "dropdownText": "#1a1300",
   "error": "#ff6b6b"
 },
+  "home": {
+  "title": "Welcome to Ruang Digital",
+  "text": "Safe and trusted game top-ups in Brunei.",
+  "steps": [
+    "Choose your game and items",
+    "Enter your game details",
+    "Pay by bank transfer or WhatsApp",
+    "Receive your items"
+  ]
+},
   "layout": {
   "cardWidth": 170,
   "imageRatio": "16/10",
