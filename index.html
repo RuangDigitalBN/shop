@@ -48,6 +48,14 @@ h3{font-size:.9rem;margin:16px 0 8px;color:var(--mute);font-weight:600}
 .tile small{color:var(--mute)}
 .steps{line-height:1.8;padding-left:20px;margin:0}
 .homereq{margin:18px 0 0}
+.linkbtn{background:none;color:var(--accent);padding:2px 0;text-decoration:underline;font-size:.9rem;align-self:flex-start;text-align:left}
+#shopHint{margin-bottom:10px}
+.gintro{color:var(--mute);margin:0 0 14px;line-height:1.6}
+.gstep{display:flex;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+.gnum{flex:none;width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--onaccent);font-weight:700;display:flex;align-items:center;justify-content:center}
+.gtitle{font-weight:600}
+.gtext{color:var(--mute);font-size:.9rem;line-height:1.55;margin-top:2px}
+.gbox>button{margin-top:6px}
 #tabs button.on{background:var(--accent);color:var(--onaccent);border-color:var(--accent)}
 h2{font-size:1rem;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cw,170px),1fr));gap:12px}
@@ -103,11 +111,13 @@ try {
   <nav id="nav"></nav>
   <div id="home"></div>
   <div id="shopView">
+    <div id="shopHint"></div>
     <input id="q" placeholder="Search items...">
     <div id="tabs"></div>
     <div id="subtabs"></div>
     <div id="list"></div>
   </div>
+  <div id="guideView"></div>
   <div id="fbView"></div>
 </main>
 <aside id="drawer">
@@ -122,6 +132,7 @@ try {
     <div class="total" id="totalRow"><span>Total</span><span id="total"></span></div>
     <button class="wa" id="orderBtn">Place order</button>
     <div id="after"></div>
+    <button class="linkbtn" id="cartHelp" style="display:none"></button>
   </div>
 </aside>
 <script>
@@ -132,6 +143,13 @@ const money = n => cfg.currency + Number(n).toFixed(2);
 const save = () => { try { localStorage.setItem("cart", JSON.stringify(cart)); } catch (e) {} };
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
+const GUIDE_STEPS = [
+  { title: "Choose your items", text: "Pick your game on the Shop page, then tap Add to cart on the items you want." },
+  { title: "Enter your game details", text: "Open your cart and type your game ID (for example User ID and Server ID), your name and your WhatsApp number. Check them carefully, because we top up this account." },
+  { title: "Choose how to pay", text: "Bank transfer: we show our bank details and your order number. Transfer the exact total and type your order number in the remarks box. Or order via WhatsApp and we confirm with you first." },
+  { title: "Send your proof", text: "After you transfer, tap Send proof on WhatsApp so we can confirm your payment quickly." },
+  { title: "Receive your items", text: "We top up your account as soon as your payment is confirmed." }
+];
 // Wording shown to customers after they place an order. Any of these can be changed in config.json under "texts".
 const TX = {
   orderReceived: "Order {order} received.",
@@ -155,13 +173,18 @@ const TX = {
   homeSteps: "How to order",
   homeStart: "Start shopping",
   homeRequest: "Can't find what you need? Request an item",
+  navGuide: "How to order",
+  guideTitle: "How to order",
+  guideStart: "Start shopping",
+  shopHint: "New here? See how to order",
+  cartHelp: "Need help? See how to order",
   feedbackTitle: "Request an item or send feedback",
   feedbackHint: "Tell us which game items you would like us to sell, or how we can improve.",
   feedbackSend: "Send",
   feedbackThanks: "Thank you! We have received your message.",
   feedbackContact: "or contact us at:"
 };
-const raw = k => String((cfg.texts && cfg.texts[k]) || TX[k]);
+const raw = k => String(({ ...cfg.texts, ...cfg.homeTexts, ...cfg.guideTexts, ...cfg.orderTexts, ...cfg.feedbackTexts })[k] || TX[k]);
 const tx = (k, v) => esc(raw(k)).replace(/\{(\w+)\}/g, (m, n) => (v && n in v) ? v[n] : m);
 
 function parseCSV(text) {
@@ -255,19 +278,38 @@ function drawSubs() {
   $("subtabs").innerHTML = cats.length ? ["", ...cats].map(c => `<button class="${c === sub ? "on" : ""}" data-c="${esc(c)}">${c ? esc(c) : "All"}</button>`).join("") : "";
   $("subtabs").querySelectorAll("button").forEach(b => b.onclick = () => { sub = b.dataset.c; drawSubs(); render(); });
 }
+const openGuide = () => { $("drawer").classList.remove("open"); view = "guide"; showView(); window.scrollTo(0, 0); };
+function drawShopHint() {
+  $("shopHint").innerHTML = cfg.guideEnabled === false ? "" : `<button class="linkbtn" id="hintBtn">${tx("shopHint")}</button>`;
+  if ($("hintBtn")) $("hintBtn").onclick = openGuide;
+}
+function renderGuide() {
+  const g = cfg.guide || {};
+  const st = (Array.isArray(g.steps) && g.steps.length ? g.steps : GUIDE_STEPS).map(x => typeof x === "string" ? { title: x, text: "" } : { title: x.title || "", text: x.text || "" });
+  $("guideView").innerHTML = `<div class="gbox"><h2>${esc(g.title || raw("guideTitle"))}</h2>${g.intro ? `<p class="gintro">${esc(g.intro)}</p>` : ""}
+    ${st.map((x, i) => `<div class="gstep"><span class="gnum">${i + 1}</span><div><div class="gtitle">${esc(x.title)}</div>${x.text ? `<div class="gtext">${esc(x.text)}</div>` : ""}</div></div>`).join("")}
+    <button id="gStart">${tx("guideStart")}</button>
+    <div class="fbcontact">${tx("feedbackContact")} ${contactLinks()}</div></div>`;
+  $("gStart").onclick = () => { view = "shop"; showView(); window.scrollTo(0, 0); };
+}
 function drawNav() {
   const tabs = [["home", tx("navHome")], ["shop", tx("navShop")]];
+  if (cfg.guideEnabled !== false) tabs.push(["guide", tx("navGuide")]);
   if (cfg.feedbackEnabled !== false) tabs.push(["fb", tx("navFeedback")]);
   $("nav").innerHTML = tabs.map(([k, n]) => `<button class="${k === view ? "on" : ""}" data-v="${k}">${n}</button>`).join("");
   $("nav").querySelectorAll("button").forEach(b => b.onclick = () => { view = b.dataset.v; showView(); window.scrollTo(0, 0); });
+  const ch = $("cartHelp");
+  ch.style.display = cfg.guideEnabled === false ? "none" : ""; ch.textContent = raw("cartHelp"); ch.onclick = openGuide;
 }
 function showView() {
   $("home").style.display = view === "home" ? "" : "none";
   $("shopView").style.display = view === "shop" ? "" : "none";
   $("fbView").style.display = view === "fb" ? "" : "none";
+  $("guideView").style.display = view === "guide" ? "" : "none";
   drawNav();
   if (view === "home") renderHome();
-  if (view === "shop") { drawTabs(); render(); }
+  if (view === "shop") { drawShopHint(); drawTabs(); render(); }
+  if (view === "guide") renderGuide();
   if (view === "fb") { $("fbView").innerHTML = feedbackHtml(); bindFeedback(); }
 }
 function renderHome() {
@@ -277,13 +319,14 @@ function renderHome() {
     const n = items.filter(i => i.game === g).length, img = (cfg.gameImages || {})[g];
     return `<button class="tile" data-g="${esc(g)}"><span class="timg">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : "🎮"}</span><span class="tname">${esc(g)}</span><small>${n} ${n === 1 ? "item" : "items"}</small></button>`;
   }).join("");
-  $("home").innerHTML = `<div class="hero"><h2>${esc(h.title || raw("homeTitle").split("{store}").join(cfg.storeName))}</h2>${h.text ? `<p>${esc(h.text)}</p>` : ""}<button id="startBtn">${tx("homeStart")}</button></div>
+  $("home").innerHTML = `<div class="hero"><h2>${esc(h.title || raw("homeTitle").split("{store}").join(cfg.storeName))}</h2>${h.text ? `<p>${esc(h.text)}</p>` : ""}<button id="startBtn">${tx("homeStart")}</button>${cfg.guideEnabled === false ? "" : ` <button class="ghost" id="guideBtn">${tx("navGuide")}</button>`}</div>
     <h2>${tx("homeGames")}</h2><div class="tiles">${tiles}</div>
     <h2>${tx("homeSteps")}</h2><ol class="steps">${steps.map(x => `<li>${esc(x)}</li>`).join("")}</ol>
     ${cfg.feedbackEnabled === false ? "" : `<p class="homereq"><button class="ghost" id="reqBtn">${tx("homeRequest")}</button></p>`}
     <div class="fbcontact">${tx("feedbackContact")} ${contactLinks()}</div>`;
   $("startBtn").onclick = () => { view = "shop"; active = ""; sub = ""; showView(); window.scrollTo(0, 0); };
   $("home").querySelectorAll(".tile").forEach(t => t.onclick = () => { view = "shop"; active = t.dataset.g; sub = ""; showView(); window.scrollTo(0, 0); });
+  if ($("guideBtn")) $("guideBtn").onclick = openGuide;
   if ($("reqBtn")) $("reqBtn").onclick = () => { view = "fb"; showView(); window.scrollTo(0, 0); };
 }
 function contactLinks() {

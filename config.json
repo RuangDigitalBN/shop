@@ -1,92 +1,154 @@
 {
-  "storeName": "",
+  "_1_WEBSITE": "WHOLE WEBSITE: shop name, slogan, currency, colors, logo and banner. These apply to every page.",
+  "storeName": "Ruang Digital",
   "tagline": "Skip the Scams. Shop with Confidence",
   "currency": "B$",
   "colors": {
-  "bg": "#121214",
-  "card": "#25272d",
-  "line": "#3a3d45",
-  "text": "#ffffff",
-  "mute": "#a0a3ab",
-  "accent": "#f4b833",
-  "accentText": "#1a1300",
-  "green": "#25d366",
-  "dropdown": "#f4b833",
-  "dropdownText": "#1a1300",
-  "error": "#ff6b6b"
-},
-  "home": {
-  "title": "Welcome to Ruang Digital",
-  "text": "Safe and trusted game top-ups in Brunei.",
-  "steps": [
-    "Choose your game and items",
-    "Enter your game details",
-    "Pay by bank transfer or WhatsApp",
-    "Receive your items"
-  ]
-},
-  "layout": {
-  "cardWidth": 170,
-  "imageRatio": "16/10",
-  "tabFontSize": 13
-},
+    "bg": "#121214",
+    "card": "#25272d",
+    "line": "#3a3d45",
+    "text": "#ffffff",
+    "mute": "#a0a3ab",
+    "accent": "#f4b833",
+    "accentText": "#1a1300",
+    "green": "#25d366",
+    "dropdown": "#f4b833",
+    "dropdownText": "#1a1300",
+    "error": "#ff6b6b"
+  },
   "logo": "RDLogo.png",
   "banner": "RDbanner.png",
-  "orderUrl": "https://script.google.com/macros/s/AKfycbw_N_sNtjL2owv_qsJEwJboJOs_d55hX_G-f8CoPk39TJIPp_1Bg457AWIdRs-Gly8m/exec",
-  "closed": false,
-  "closedMessage": "We are temporarily closed. Please check back soon.",
-  "whatsappNumber": "6737420706",
+
+  "_2_HOME_PAGE": "HOME PAGE: welcome message, steps, extra contacts, and the wording of the menu and home headings.",
+  "startPage": "home",
+  "home": {
+    "title": "Welcome to Ruang Digital",
+    "text": "Safe and trusted game top-ups in Brunei.",
+    "steps": [
+      "Choose your game and items",
+      "Enter your game details",
+      "Pay by bank transfer or WhatsApp",
+      "Receive your items"
+    ]
+  },
+  "contacts": [],
+  "homeTexts": {
+    "navHome": "Home",
+    "navShop": "Shop",
+    "navGuide": "How to order",
+    "navFeedback": "Request / Feedback",
+    "homeGames": "Our games",
+    "homeSteps": "How to order",
+    "homeStart": "Start shopping",
+    "homeRequest": "Can't find what you need? Request an item",
+    "feedbackContact": "or contact us at:"
+  },
+
+  "_3_HOW_TO_ORDER_PAGE": "HOW TO ORDER PAGE: the step-by-step guide customers open from the menu, the Home button, the Shop page and the cart. Edit the steps to match how you work.",
+  "guideEnabled": true,
+  "guide": {
+    "title": "How to order",
+    "intro": "Follow these steps. It only takes a minute.",
+    "steps": [
+      {
+        "title": "Choose your items",
+        "text": "Pick your game on the Shop page, then tap Add to cart on the items you want."
+      },
+      {
+        "title": "Enter your game details",
+        "text": "Open your cart and type your game ID (for example User ID and Server ID), your name and your WhatsApp number. Check them carefully, because we top up this account."
+      },
+      {
+        "title": "Choose how to pay",
+        "text": "Bank transfer: we show our bank details and your order number. Transfer the exact total and type your order number in the remarks box. Or order via WhatsApp and we confirm with you first."
+      },
+      {
+        "title": "Send your proof",
+        "text": "After you transfer, tap Send proof on WhatsApp so we can confirm your payment quickly."
+      },
+      {
+        "title": "Receive your items",
+        "text": "We top up your account as soon as your payment is confirmed."
+      }
+    ]
+  },
+  "guideTexts": {
+    "guideStart": "Start shopping",
+    "shopHint": "New here? See how to order",
+    "cartHelp": "Need help? See how to order"
+  },
+
+  "_4_LAYOUT": "LAYOUT: sizes of the item boxes, game buttons and home tiles.",
+  "layout": {
+    "cardWidth": 170,
+    "imageRatio": "16/10",
+    "tabFontSize": 13,
+    "tileWidth": 130,
+    "tileImageRatio": "1/1"
+  },
+
+  "_5_SHOP_PAGE": "SHOP PAGE: where the items come from, game pictures, account details asked per game, and payment limits per game. Game names must match your Google Sheet exactly.",
   "sheetUrl": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRl2225HJ-0vjxHDUBOealbu4fGqQJqbUandctavlQYMQ7K_v3EwbygXkj6MaqTMT-VZRpX7tt1SmmZ/pub?gid=1735583609&single=true&output=csv",
-    "bank": {
-  "enabled": true,
-  "bankName": "BIBD",
-  "accountName": "",
-  "accountNumber": "00014020637209",
-  "referenceLabel": "Order number",
-  "note": "Please enter your order number in the transfer remarks box."
-},
-    "texts": {
-  "orderReceived": "Order {order} received.",
-  "bankIntro": "Please transfer {amount} to:",
-  "bankLabel": "Bank",
-  "accountNameLabel": "Account name",
-  "accountNumberLabel": "Account no",
-  "copy": "Copy",
-  "copied": "Copied!",
-  "proofButton": "Send proof on WhatsApp",
-  "proofMessage": "Hi, I have paid for order {order}. Sending my proof of payment.",
-  "onlineMessage": "Complete your payment in the new tab. We start your order once payment is confirmed.",
-  "whatsappMessage": "WhatsApp has opened so you can send your order.",
-  "proofMessage": "Hi, I have paid for order {order}. Sending my proof of payment.",
-  "proofOrderIntro": "Order details:",
-  "orderIntro": "Hi, I'd like to order from {store}:"
-},
-  "gameMethods": {
-    "Roblox": ["whatsapp"]
+  "gameImages": {
+    "Mobile Legends (Global)": "mlbb.jpg",
+    "PUBG Mobile (Global)": "images/pubgm.webp",
+    "Roblox": "roblox.jpg",
+    "Hotlink": "images/hotlink.png",
+    "Digi": "images/digi.png"
   },
   "gameFields": {
     "Mobile Legends (Global)": ["User ID", "Server ID"],
     "PUBG Mobile (Global)": ["User ID"],
-    "Roblox": ["Roblox username"]
+    "Roblox": ["Roblox username"],
+    "Hotlink": ["Phone number"],
+    "Digi": ["Phone number"]
   },
-  "gameImages": {
-  "Mobile Legends (Global)": "mlbb.jpg",
-  "PUBG Mobile (Global)": "images/pubgm.webp",
-  "Roblox": "roblox.jpg",
-  "Hotlink": "images/hotlink.png",
-  "Digi": "images/digi.png"
-},
+  "gameMethods": {
+    "Roblox": ["whatsapp"]
+  },
+
+  "_6_CHECKOUT": "CHECKOUT: WhatsApp number, order link (also used by the feedback page), bank details, online payment, and the wording after an order.",
+  "whatsappNumber": "6737420706",
+  "orderUrl": "https://script.google.com/macros/s/AKfycbw_N_sNtjL2owv_qsJEwJboJOs_d55hX_G-f8CoPk39TJIPp_1Bg457AWIdRs-Gly8m/exec",
+  "bank": {
+    "enabled": true,
+    "bankName": "BIBD",
+    "accountName": "",
+    "accountNumber": "00014020637209",
+    "referenceLabel": "Order number",
+    "note": "Please enter your order number in the transfer remarks box."
+  },
   "payment": {
     "enabled": false,
     "label": "Pay online",
     "url": "https://www.paypal.me/YOURNAME/{amount}"
   },
-  "feedback": {
+  "orderTexts": {
+    "orderIntro": "Hi, I'd like to order from {store}:",
+    "orderReceived": "Order {order} received.",
+    "bankIntro": "Please transfer {amount} to:",
+    "bankLabel": "Bank",
+    "accountNameLabel": "Account name",
+    "accountNumberLabel": "Account no",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "proofButton": "Send proof on WhatsApp",
+    "proofMessage": "Hi, I have paid for order {order}. Sending my proof of payment.",
+    "proofOrderIntro": "Order details:",
+    "onlineMessage": "Complete your payment in the new tab. We start your order once payment is confirmed.",
+    "whatsappMessage": "WhatsApp has opened so you can send your order."
+  },
+
+  "_7_FEEDBACK_PAGE": "REQUEST / FEEDBACK PAGE: switch it on or off here, and change its wording.",
   "feedbackEnabled": false,
-  "feedbackTab": "💬 Request / Feedback",
-  "feedbackTitle": "Request an item or send feedback",
-  "feedbackHint": "Tell us which game items you would like us to sell, or how we can improve.",
-  "feedbackSend": "Send",
-  "feedbackThanks": "Thank you! We have received your message."
-  }
+  "feedbackTexts": {
+    "feedbackTitle": "Request an item or send feedback",
+    "feedbackHint": "Tell us which game items you would like us to sell, or how we can improve.",
+    "feedbackSend": "Send",
+    "feedbackThanks": "Thank you! We have received your message."
+  },
+
+  "_8_OPEN_OR_CLOSED": "OPEN OR CLOSE THE SHOP: set closed to true to stop orders and show the message.",
+  "closed": false,
+  "closedMessage": "We are temporarily closed. Please check back soon."
 }
