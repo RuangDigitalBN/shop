@@ -23,7 +23,7 @@ input{width:100%;background:var(--card);border:1px solid var(--line);color:var(-
 h2{font-size:1rem;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
-.img{aspect-ratio:16/10;background:linear-gradient(135deg,#2b2350,#16202e);display:flex;align-items:center;justify-content:center;font-size:1.8rem}
+.img{aspect-ratio:16/10;background:linear-gradient(135deg,#3a2f12,#1b150a);display:flex;align-items:center;justify-content:center;font-size:1.8rem}
 .img img{width:100%;height:100%;object-fit:cover}
 .body{padding:10px;display:flex;flex-direction:column;gap:5px;flex:1}
 .name{font-weight:600;font-size:.95rem}
@@ -68,7 +68,7 @@ h2{font-size:1rem;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid 
     <input id="cContact" placeholder="Your WhatsApp number *">
     <select id="method"></select>
     <div id="mNote" style="font-size:.8rem;color:var(--mute)"></div>
-    <div class="total"><span>Total</span><span id="total"></span></div>
+    <div class="total" id="totalRow"><span>Total</span><span id="total"></span></div>
     <button class="wa" id="orderBtn">Place order</button>
     <div id="after"></div>
   </div>
@@ -164,13 +164,13 @@ function render() {
           <div class="name">${esc(it.name)}</div>
           <div class="desc">${esc(it.description)}</div>
           <div class="price">${money(it.price)}</div>
-          <button ${it.soldOut || cfg.closed ? "disabled" : ""} onclick="add(${idx})">${cfg.closed ? "Closed" : it.soldOut ? "Sold out" : "Add to cart"}</button>
+          <button ${it.soldOut || cfg.closed || !it.price ? "disabled" : ""} onclick="add(${idx})">${cfg.closed ? "Closed" : it.soldOut ? "Sold out" : !it.price ? "Unavailable" : "Add to cart"}</button>
         </div>
       </div>`).join("") + "</div>";
   }).join("");
   $("list").innerHTML = html || '<p class="empty">No items found.</p>';
 }
-function add(idx) { $("after").innerHTML = ""; const id = items[idx].id; cart[id] = (cart[id] || 0) + 1; save(); drawCart(); $("drawer").classList.add("open"); }
+function add(idx) { $("after").innerHTML = ""; toggleForm(false); const id = items[idx].id; cart[id] = (cart[id] || 0) + 1; save(); drawCart(); $("drawer").classList.add("open"); }
 function chg(idx, d) { const id = items[idx].id; cart[id] = (cart[id] || 0) + d; if (cart[id] <= 0) delete cart[id]; save(); drawCart(); }
 function lines() { return items.map((item, idx) => ({ item, idx, n: cart[item.id] || 0 })).filter(l => l.n); }
 function total() { return lines().reduce((s, l) => s + l.item.price * l.n, 0); }
@@ -193,6 +193,7 @@ function summary() {
   return t;
 }
 let info = {}, orderId = "", methods = [];
+const toggleForm = hide => ["cName", "cContact", "method", "mNote", "totalRow", "orderBtn"].forEach(id => { $(id).style.display = hide ? "none" : ""; });
 document.addEventListener("click", e => {
   const t = e.target.closest(".cp");
   if (!t) return;
@@ -231,6 +232,9 @@ $("orderBtn").onclick = () => {
   if (!contact || [...$("fields").querySelectorAll("input")].some(i => !i.value.trim())) {
     $("after").innerHTML = "<b>Please fill in all fields marked *.</b>"; return;
   }
+  if (!/^\d{7,15}$/.test(contact.replace(/[\s+\-()]/g, ""))) {
+    $("after").innerHTML = "<b>Please enter a valid WhatsApp number with country code, e.g. 6738123456.</b>"; return;
+  }
   const method = $("method").value;
   orderId = "GS" + Date.now().toString(36).toUpperCase().slice(-6);
   const order = { orderId, time: new Date().toLocaleString(), name: $("cName").value.trim(), contact,
@@ -242,13 +246,23 @@ $("orderBtn").onclick = () => {
   const wa = t => `https://wa.me/${cfg.whatsappNumber}?text=${encodeURIComponent(t)}`;
   if (method === "online") window.open(cfg.payment.url.replace("{amount}", order.total), "_blank");
   if (method === "whatsapp") window.open(wa(text), "_blank");
-  let h = `<b>Order ${orderId} received.</b><br>`;
+  const rows = [
+    ["Items", L.map(l => `${esc(l.item.game)} - ${esc(l.item.name)} x${l.n}`).join("<br>")],
+    ["Total", money(order.total)],
+    ["Payment", esc($("method").selectedOptions[0].textContent)],
+    ["Name", esc(order.name || "-")],
+    ["WhatsApp", esc(order.contact)],
+    ...details().map(d => { const i = d.indexOf(": "); return [esc(d.slice(0, i)), esc(d.slice(i + 2))]; })
+  ];
+  let h = `<b>Order ${orderId} received.</b><div style="margin:8px 0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;color:var(--mute)">` +
+    rows.map(r => `${r[0]}: <span style="color:var(--text)">${r[1]}</span>`).join("<br>") + "</div>";
   if (method === "bank") {
     const b = cfg.bank;
-    h += `Please transfer <b>${money(order.total)}</b> to:<br>Bank: <b>${esc(b.bankName)}</b><br>Account name: <b>${esc(b.accountName)}</b><br>Account no: <b>${esc(b.accountNumber)}</b> <button type="button" class="cp" data-copy="${esc(b.accountNumber)}">Copy</button><br>Reference: <b>${orderId}</b> <button type="button" class="cp" data-copy="${orderId}">Copy</button><br>${esc(b.note || "")}<br><button class="wa" onclick="window.open('${wa("Hi, I have paid for order " + orderId + ". Sending my proof of payment.")}')">Send proof on WhatsApp</button>`;
+    h += `Please transfer <b>${money(order.total)}</b> to:<br>Bank: <b>${esc(b.bankName)}</b><br>Account name: <b>${esc(b.accountName)}</b><br>Account no: <b>${esc(b.accountNumber)}</b> <button type="button" class="cp" data-copy="${esc(b.accountNumber)}">Copy</button><br>Reference: <b>${orderId}</b> <button type="button" class="cp" data-copy="${orderId}">Copy</button><br>${esc(b.note || "")}<br><button class="wa" onclick="window.open('${wa("Hi, I have paid for order " + orderId + ". Sending my proof of payment.\n\n" + text).replace(/'/g, "%27")}')">Send proof on WhatsApp</button>`;
   } else if (method === "online") h += "Complete your payment in the new tab. We start your order once payment is confirmed.";
   else h += "WhatsApp has opened so you can send your order.";
   $("after").innerHTML = h;
+  toggleForm(true);
   cart = {}; save(); drawCart();
 };
 
