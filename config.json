@@ -15,6 +15,11 @@
   "dropdownText": "#1a1300",
   "error": "#ff6b6b"
 },
+  "layout": {
+  "cardWidth": 170,
+  "imageRatio": "16/10",
+  "tabFontSize": 13
+},
   "logo": "RDLogo.png",
   "banner": "RDbanner.png",
   "orderUrl": "https://script.google.com/macros/s/AKfycbw_N_sNtjL2owv_qsJEwJboJOs_d55hX_G-f8CoPk39TJIPp_1Bg457AWIdRs-Gly8m/exec",
