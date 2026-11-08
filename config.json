@@ -24,8 +24,8 @@
   "sheetUrl": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRl2225HJ-0vjxHDUBOealbu4fGqQJqbUandctavlQYMQ7K_v3EwbygXkj6MaqTMT-VZRpX7tt1SmmZ/pub?gid=1735583609&single=true&output=csv",
   "bank": {
     "enabled": true,
-    "bankName": "BIBD",
-    "accountName": "-",
+    "bankName": "Bank Islam Brunei Darussalam (BIBD)",
+    "accountName": "",
     "accountNumber": "0000000000",
     "note": "Use the order number as the transfer reference."
   },
