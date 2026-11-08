@@ -70,5 +70,13 @@
     "enabled": false,
     "label": "Pay online",
     "url": "https://www.paypal.me/YOURNAME/{amount}"
+  },
+  "feedback": {
+  "feedbackEnabled": false,
+  "feedbackTab": "💬 Request / Feedback",
+  "feedbackTitle": "Request an item or send feedback",
+  "feedbackHint": "Tell us which game items you would like us to sell, or how we can improve.",
+  "feedbackSend": "Send",
+  "feedbackThanks": "Thank you! We have received your message."
   }
 }
