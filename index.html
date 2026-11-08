@@ -32,6 +32,22 @@ h3{font-size:.9rem;margin:16px 0 8px;color:var(--mute);font-weight:600}
 #fbOut{margin-top:10px;font-size:.9rem}
 .fbcontact{margin-top:20px;color:var(--mute);font-size:.9rem;line-height:1.7}
 .fbcontact a{color:var(--accent)}
+#cartBtn{position:relative;display:flex;align-items:center;padding:8px 12px}
+.badge{position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--text);color:var(--bg);border:2px solid var(--bg);box-sizing:content-box;font-size:.72rem;font-weight:700;line-height:20px;text-align:center}
+#nav{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto}
+#nav button{background:none;color:var(--mute);border-radius:0;padding:10px 6px;margin-right:14px;border-bottom:2px solid transparent;white-space:nowrap}
+#nav button.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.hero{padding:6px 0 10px}
+.hero h2{border:0;font-size:1.3rem;margin:10px 0 6px;color:var(--text);padding:0}
+.hero p{color:var(--mute);margin:0 0 14px;line-height:1.6}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--tw,130px),1fr));gap:12px}
+.tile{display:flex;flex-direction:column;gap:6px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:0 0 10px;overflow:hidden;text-align:center;align-items:stretch}
+.tile .timg{aspect-ratio:var(--tratio,1/1);display:flex;align-items:center;justify-content:center;font-size:2rem;background:linear-gradient(135deg,#3a2f12,#1b150a)}
+.tile .timg img{width:100%;height:100%;object-fit:cover}
+.tname{font-weight:600;padding:0 8px}
+.tile small{color:var(--mute)}
+.steps{line-height:1.8;padding-left:20px;margin:0}
+.homereq{margin:18px 0 0}
 #tabs button.on{background:var(--accent);color:var(--onaccent);border-color:var(--accent)}
 h2{font-size:1rem;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cw,170px),1fr));gap:12px}
@@ -72,20 +88,27 @@ try {
   if (l.cw) document.documentElement.style.setProperty("--cw", l.cw + "px");
   if (l.ratio) document.documentElement.style.setProperty("--ratio", l.ratio);
   if (l.tfs) document.documentElement.style.setProperty("--tabfs", l.tfs + "px");
+  if (l.tw) document.documentElement.style.setProperty("--tw", l.tw + "px");
+  if (l.tr) document.documentElement.style.setProperty("--tratio", l.tr);
 } catch (e) {}
 </script>
 </head>
 <body>
 <header>
   <div style="display:flex;align-items:center;gap:10px"><img id="logo" alt="" style="display:none;height:40px;border-radius:6px"><div><h1 id="store">Shop</h1><p id="tag"></p></div></div>
-  <button id="cartBtn">Cart (0)</button>
+  <button id="cartBtn" aria-label="Cart (0)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg><span id="cartN" class="badge" style="display:none">0</span></button>
 </header>
 <img id="banner" alt="" style="display:none;width:100%;max-height:220px;object-fit:cover">
 <main>
-  <input id="q" placeholder="Search items...">
-  <div id="tabs"></div>
-  <div id="subtabs"></div>
-  <div id="list"></div>
+  <nav id="nav"></nav>
+  <div id="home"></div>
+  <div id="shopView">
+    <input id="q" placeholder="Search items...">
+    <div id="tabs"></div>
+    <div id="subtabs"></div>
+    <div id="list"></div>
+  </div>
+  <div id="fbView"></div>
 </main>
 <aside id="drawer">
   <div class="top"><strong>Your cart</strong><button class="ghost" id="close">Close</button></div>
@@ -102,7 +125,7 @@ try {
   </div>
 </aside>
 <script>
-let cfg = {}, items = [], games = [], active = "", sub = "", cart = {};
+let cfg = {}, items = [], games = [], active = "", sub = "", view = "home", cart = {};
 try { cart = JSON.parse(localStorage.getItem("cart") || "{}"); } catch (e) {}
 const $ = id => document.getElementById(id);
 const money = n => cfg.currency + Number(n).toFixed(2);
@@ -124,7 +147,14 @@ const TX = {
   whatsappMessage: "WhatsApp has opened so you can send your order.",
   orderIntro: "Hi, I'd like to order from {store}:",
   proofOrderIntro: "Order details:",
-  feedbackTab: "💬 Request / Feedback",
+  navHome: "Home",
+  navShop: "Shop",
+  navFeedback: "Request / Feedback",
+  homeTitle: "Welcome to {store}",
+  homeGames: "Our games",
+  homeSteps: "How to order",
+  homeStart: "Start shopping",
+  homeRequest: "Can't find what you need? Request an item",
   feedbackTitle: "Request an item or send feedback",
   feedbackHint: "Tell us which game items you would like us to sell, or how we can improve.",
   feedbackSend: "Send",
@@ -162,10 +192,14 @@ fetch("config.json?" + Date.now()).then(r => r.json()).then(c => {
   const cmap = { bg: "--bg", card: "--card", line: "--line", text: "--text", mute: "--mute", accent: "--accent", accentText: "--onaccent", green: "--green", dropdown: "--dd", dropdownText: "--ddtext", error: "--err" };
   Object.entries(cfg.colors || {}).forEach(([k, v]) => { if (v && cmap[k]) rs.setProperty(cmap[k], v); });
   try { localStorage.setItem("colors", JSON.stringify(cfg.colors || {})); } catch (e) {}
-  const lay = cfg.layout || {}, cw = Number(lay.cardWidth), ratio = String(lay.imageRatio || "").trim(), tf = Number(lay.tabFontSize);
+  const lay = cfg.layout || {}, cw = Number(lay.cardWidth), ratio = String(lay.imageRatio || "").trim(), tf = Number(lay.tabFontSize), tw = Number(lay.tileWidth), tr = String(lay.tileImageRatio || "").trim();
   const okLay = { cw: cw >= 110 && cw <= 400 ? cw : 0, ratio: /^\d+(\.\d+)?\s*\/\s*\d+(\.\d+)?$/.test(ratio) ? ratio : "" };
   okLay.tfs = tf >= 10 && tf <= 22 ? tf : 0;
   if (okLay.tfs) rs.setProperty("--tabfs", okLay.tfs + "px"); else rs.removeProperty("--tabfs");
+  okLay.tw = tw >= 80 && tw <= 300 ? tw : 0;
+  okLay.tr = /^\d+(\.\d+)?\s*\/\s*\d+(\.\d+)?$/.test(tr) ? tr : "";
+  if (okLay.tw) rs.setProperty("--tw", okLay.tw + "px"); else rs.removeProperty("--tw");
+  if (okLay.tr) rs.setProperty("--tratio", okLay.tr); else rs.removeProperty("--tratio");
   if (okLay.cw) rs.setProperty("--cw", okLay.cw + "px"); else rs.removeProperty("--cw");
   if (okLay.ratio) rs.setProperty("--ratio", okLay.ratio); else rs.removeProperty("--ratio");
   try { localStorage.setItem("layout", JSON.stringify(okLay)); } catch (e) {}
@@ -205,12 +239,12 @@ fetch("config.json?" + Date.now()).then(r => r.json()).then(c => {
   showClosed();
   games = [...new Set(items.map(i => i.game))];
   Object.keys(cart).forEach(id => { if (!items.find(i => i.id === id && !i.soldOut)) delete cart[id]; });
-  drawTabs(); render(); drawCart();
+  view = cfg.startPage === "shop" ? "shop" : "home"; showView(); drawCart();
 }).catch(() => { $("list").innerHTML = '<p class="empty">Could not load the shop files.</p>'; });
 
 function drawTabs() {
   $("tabs").innerHTML = ["", ...games].map(g =>
-    `<button class="${g === active ? "on" : ""}" data-g="${esc(g)}">${gimg(g, 20)}${g ? esc(g) : "All"}</button>`).join("") + (cfg.feedbackEnabled === false ? "" : `<button class="${active === "#fb" ? "on" : ""}" data-g="#fb">${tx("feedbackTab")}</button>`);
+    `<button class="${g === active ? "on" : ""}" data-g="${esc(g)}">${gimg(g, 20)}${g ? esc(g) : "All"}</button>`).join("");
   $("tabs").querySelectorAll("button").forEach(b => b.onclick = () => { active = b.dataset.g; sub = ""; drawTabs(); render(); });
   drawSubs();
 }
@@ -220,6 +254,37 @@ function drawSubs() {
   $("subtabs").style.display = cats.length ? "flex" : "none";
   $("subtabs").innerHTML = cats.length ? ["", ...cats].map(c => `<button class="${c === sub ? "on" : ""}" data-c="${esc(c)}">${c ? esc(c) : "All"}</button>`).join("") : "";
   $("subtabs").querySelectorAll("button").forEach(b => b.onclick = () => { sub = b.dataset.c; drawSubs(); render(); });
+}
+function drawNav() {
+  const tabs = [["home", tx("navHome")], ["shop", tx("navShop")]];
+  if (cfg.feedbackEnabled !== false) tabs.push(["fb", tx("navFeedback")]);
+  $("nav").innerHTML = tabs.map(([k, n]) => `<button class="${k === view ? "on" : ""}" data-v="${k}">${n}</button>`).join("");
+  $("nav").querySelectorAll("button").forEach(b => b.onclick = () => { view = b.dataset.v; showView(); window.scrollTo(0, 0); });
+}
+function showView() {
+  $("home").style.display = view === "home" ? "" : "none";
+  $("shopView").style.display = view === "shop" ? "" : "none";
+  $("fbView").style.display = view === "fb" ? "" : "none";
+  drawNav();
+  if (view === "home") renderHome();
+  if (view === "shop") { drawTabs(); render(); }
+  if (view === "fb") { $("fbView").innerHTML = feedbackHtml(); bindFeedback(); }
+}
+function renderHome() {
+  const h = cfg.home || {};
+  const steps = Array.isArray(h.steps) && h.steps.length ? h.steps : ["Choose your items", "Enter your game details", "Pay by bank transfer or WhatsApp", "Receive your items"];
+  const tiles = games.map(g => {
+    const n = items.filter(i => i.game === g).length, img = (cfg.gameImages || {})[g];
+    return `<button class="tile" data-g="${esc(g)}"><span class="timg">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : "🎮"}</span><span class="tname">${esc(g)}</span><small>${n} ${n === 1 ? "item" : "items"}</small></button>`;
+  }).join("");
+  $("home").innerHTML = `<div class="hero"><h2>${esc(h.title || raw("homeTitle").split("{store}").join(cfg.storeName))}</h2>${h.text ? `<p>${esc(h.text)}</p>` : ""}<button id="startBtn">${tx("homeStart")}</button></div>
+    <h2>${tx("homeGames")}</h2><div class="tiles">${tiles}</div>
+    <h2>${tx("homeSteps")}</h2><ol class="steps">${steps.map(x => `<li>${esc(x)}</li>`).join("")}</ol>
+    ${cfg.feedbackEnabled === false ? "" : `<p class="homereq"><button class="ghost" id="reqBtn">${tx("homeRequest")}</button></p>`}
+    <div class="fbcontact">${tx("feedbackContact")} ${contactLinks()}</div>`;
+  $("startBtn").onclick = () => { view = "shop"; active = ""; sub = ""; showView(); window.scrollTo(0, 0); };
+  $("home").querySelectorAll(".tile").forEach(t => t.onclick = () => { view = "shop"; active = t.dataset.g; sub = ""; showView(); window.scrollTo(0, 0); });
+  if ($("reqBtn")) $("reqBtn").onclick = () => { view = "fb"; showView(); window.scrollTo(0, 0); };
 }
 function contactLinks() {
   const list = [];
@@ -274,8 +339,6 @@ function cardHtml(it, idx) {
       </div>`;
 }
 function render() {
-  $("q").style.display = active === "#fb" ? "none" : "";
-  if (active === "#fb") { $("list").innerHTML = feedbackHtml(); bindFeedback(); return; }
   const q = $("q").value.toLowerCase();
   const html = games.filter(g => !active || g === active).map(g => {
     const list = items.map((it, idx) => ({ it, idx })).filter(({ it }) => it.game === g && it.name.toLowerCase().includes(q) && (!sub || it.cat === sub))
@@ -296,7 +359,9 @@ function lines() { return items.map((item, idx) => ({ item, idx, n: cart[item.id
 function total() { return lines().reduce((s, l) => s + l.item.price * l.n, 0); }
 function drawCart() {
   const L = lines();
-  $("cartBtn").textContent = `Cart (${L.reduce((s, l) => s + l.n, 0)})`;
+  const n = L.reduce((s, l) => s + l.n, 0);
+  $("cartN").textContent = n > 99 ? "99+" : n; $("cartN").style.display = n ? "" : "none";
+  $("cartBtn").setAttribute("aria-label", `Cart (${n})`);
   $("lines").innerHTML = L.map(({ item, idx, n }) => `
     <div class="line"><div><div>${esc(item.name)}</div><small style="color:var(--mute)">${esc(item.game)} · ${money(item.price)}</small></div>
     <div class="qty"><button class="ghost" onclick="chg(${idx},-1)">−</button>${n}<button class="ghost" onclick="chg(${idx},1)">+</button></div></div>`).join("") || '<div class="empty">Your cart is empty.</div>';
