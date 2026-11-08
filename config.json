@@ -46,7 +46,10 @@
   "proofButton": "Send proof on WhatsApp",
   "proofMessage": "Hi, I have paid for order {order}. Sending my proof of payment.",
   "onlineMessage": "Complete your payment in the new tab. We start your order once payment is confirmed.",
-  "whatsappMessage": "WhatsApp has opened so you can send your order."
+  "whatsappMessage": "WhatsApp has opened so you can send your order.",
+  "proofMessage": "Hi, I have paid for order {order}. Sending my proof of payment.",
+  "proofOrderIntro": "Order details:",
+  "orderIntro": "Hi, I'd like to order from {store}:"
 },
   "gameMethods": {
     "Roblox": ["whatsapp"]
