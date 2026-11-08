@@ -108,7 +108,9 @@ const TX = {
   proofButton: "Send proof on WhatsApp",
   proofMessage: "Hi, I have paid for order {order}. Sending my proof of payment.",
   onlineMessage: "Complete your payment in the new tab. We start your order once payment is confirmed.",
-  whatsappMessage: "WhatsApp has opened so you can send your order."
+  whatsappMessage: "WhatsApp has opened so you can send your order.",
+  orderIntro: "Hi, I'd like to order from {store}:",
+  proofOrderIntro: "Order details:"
 };
 const raw = k => String((cfg.texts && cfg.texts[k]) || TX[k]);
 const tx = (k, v) => esc(raw(k)).replace(/\{(\w+)\}/g, (m, n) => (v && n in v) ? v[n] : m);
@@ -224,9 +226,9 @@ function drawCart() {
   $("orderBtn").disabled = !L.length || !!cfg.closed;
   drawFields(L);
 }
-function summary() {
+function summary(forProof) {
   const gid = details().join("\n");
-  let t = `Hi, I'd like to order from ${cfg.storeName}:\n\n`;
+  let t = raw(forProof ? "proofOrderIntro" : "orderIntro").split("{store}").join(cfg.storeName) + "\n\n";
   lines().forEach(({ item, n }, i) => t += `${i + 1}. ${item.name} (${item.game}) x${n} - ${money(item.price * n)}\n`);
   t += `\nTotal: ${money(total())}`;
   t += `\n\nOrder No: ${orderId}\nName: ${$("cName").value.trim()}\nContact: ${$("cContact").value.trim()}\n${gid}`;
@@ -286,7 +288,7 @@ $("orderBtn").onclick = () => {
   const order = { orderId, time: new Date().toLocaleString(), name: $("cName").value.trim(), contact,
     items: L.map(l => `${l.item.game} - ${l.item.name} x${l.n}`).join("; "), total: total().toFixed(2),
     method, details: details().join("; "), status: "Pending" };
-  const text = summary();
+  const text = summary(), proofText = summary(true);
   if (cfg.orderUrl && cfg.orderUrl.startsWith("https://"))
     fetch(cfg.orderUrl, { method: "POST", mode: "no-cors", keepalive: true, headers: { "Content-Type": "text/plain" }, body: JSON.stringify(order) }).catch(() => {});
   const wa = t => `https://wa.me/${cfg.whatsappNumber}?text=${encodeURIComponent(t)}`;
@@ -304,7 +306,7 @@ $("orderBtn").onclick = () => {
     rows.map(r => `${r[0]}: <span style="color:var(--text)">${r[1]}</span>`).join("<br>") + "</div>";
   if (method === "bank") {
     const b = cfg.bank;
-    h += `${tx("bankIntro", { amount: "<b>" + esc(money(order.total)) + "</b>" })}<br>${tx("bankLabel")}: <b>${esc(b.bankName)}</b><br>${b.accountName && b.accountName.trim() && b.accountName.trim() !== "-" ? `${tx("accountNameLabel")}: <b>${esc(b.accountName)}</b><br>` : ""}${tx("accountNumberLabel")}: <b>${esc(b.accountNumber)}</b> <button type="button" class="cp" data-copy="${esc(b.accountNumber)}">${tx("copy")}</button><br>${esc(b.referenceLabel || "Order number")}: <b>${orderId}</b> <button type="button" class="cp" data-copy="${orderId}">${tx("copy")}</button><br>${esc(b.note || "")}<br><button class="wa" onclick="window.open('${wa(raw("proofMessage").split("{order}").join(orderId) + "\n\n" + text).replace(/'/g, "%27")}')">${tx("proofButton")}</button>`;
+    h += `${tx("bankIntro", { amount: "<b>" + esc(money(order.total)) + "</b>" })}<br>${tx("bankLabel")}: <b>${esc(b.bankName)}</b><br>${b.accountName && b.accountName.trim() && b.accountName.trim() !== "-" ? `${tx("accountNameLabel")}: <b>${esc(b.accountName)}</b><br>` : ""}${tx("accountNumberLabel")}: <b>${esc(b.accountNumber)}</b> <button type="button" class="cp" data-copy="${esc(b.accountNumber)}">${tx("copy")}</button><br>${esc(b.referenceLabel || "Order number")}: <b>${orderId}</b> <button type="button" class="cp" data-copy="${orderId}">${tx("copy")}</button><br>${esc(b.note || "")}<br><button class="wa" onclick="window.open('${wa(raw("proofMessage").split("{order}").join(orderId) + "\n\n" + proofText).replace(/'/g, "%27")}')">${tx("proofButton")}</button>`;
   } else if (method === "online") h += tx("onlineMessage");
   else h += tx("whatsappMessage");
   $("after").innerHTML = h;
