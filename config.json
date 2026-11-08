@@ -43,7 +43,6 @@
   "onlineMessage": "Complete your payment in the new tab. We start your order once payment is confirmed.",
   "whatsappMessage": "WhatsApp has opened so you can send your order."
 },
-},
   "gameMethods": {
     "Roblox": ["whatsapp"]
   },
