@@ -29,6 +29,7 @@
   "accountNumber": "0000000000",
   "referenceLabel": "Order number",
   "note": "Please enter your order number in the transfer remarks box."
+},
     "texts": {
   "orderReceived": "Order {order} received.",
   "bankIntro": "Please transfer {amount} to:",
