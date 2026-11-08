@@ -319,14 +319,13 @@ function renderHome() {
     const n = items.filter(i => i.game === g).length, img = (cfg.gameImages || {})[g];
     return `<button class="tile" data-g="${esc(g)}"><span class="timg">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : "🎮"}</span><span class="tname">${esc(g)}</span><small>${n} ${n === 1 ? "item" : "items"}</small></button>`;
   }).join("");
-  $("home").innerHTML = `<div class="hero"><h2>${esc(h.title || raw("homeTitle").split("{store}").join(cfg.storeName))}</h2>${h.text ? `<p>${esc(h.text)}</p>` : ""}<button id="startBtn">${tx("homeStart")}</button>${cfg.guideEnabled === false ? "" : ` <button class="ghost" id="guideBtn">${tx("navGuide")}</button>`}</div>
+  $("home").innerHTML = `<div class="hero"><h2>${esc(h.title || raw("homeTitle").split("{store}").join(cfg.storeName))}</h2>${h.text ? `<p>${esc(h.text)}</p>` : ""}<button id="startBtn">${tx("homeStart")}</button></div>
     <h2>${tx("homeGames")}</h2><div class="tiles">${tiles}</div>
     <h2>${tx("homeSteps")}</h2><ol class="steps">${steps.map(x => `<li>${esc(x)}</li>`).join("")}</ol>
     ${cfg.feedbackEnabled === false ? "" : `<p class="homereq"><button class="ghost" id="reqBtn">${tx("homeRequest")}</button></p>`}
     <div class="fbcontact">${tx("feedbackContact")} ${contactLinks()}</div>`;
   $("startBtn").onclick = () => { view = "shop"; active = ""; sub = ""; showView(); window.scrollTo(0, 0); };
   $("home").querySelectorAll(".tile").forEach(t => t.onclick = () => { view = "shop"; active = t.dataset.g; sub = ""; showView(); window.scrollTo(0, 0); });
-  if ($("guideBtn")) $("guideBtn").onclick = openGuide;
   if ($("reqBtn")) $("reqBtn").onclick = () => { view = "fb"; showView(); window.scrollTo(0, 0); };
 }
 function contactLinks() {
