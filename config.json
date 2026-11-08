@@ -140,7 +140,7 @@
   },
 
   "_7_FEEDBACK_PAGE": "REQUEST / FEEDBACK PAGE: switch it on or off here, and change its wording.",
-  "feedbackEnabled": false,
+  "feedbackEnabled": true,
   "feedbackTexts": {
     "feedbackTitle": "Request an item or send feedback",
     "feedbackHint": "Tell us which game items you would like us to sell, or how we can improve.",
