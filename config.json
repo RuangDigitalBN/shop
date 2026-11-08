@@ -12,7 +12,8 @@
   "accentText": "#1a1300",
   "green": "#25d366",
   "dropdown": "#f4b833",
-  "dropdownText": "#1a1300"
+  "dropdownText": "#1a1300",
+  "error": "#ff6b6b"
 },
   "logo": "RDLogo.png",
   "banner": "RDbanner.png",
