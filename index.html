@@ -275,7 +275,7 @@ $("orderBtn").onclick = () => {
     rows.map(r => `${r[0]}: <span style="color:var(--text)">${r[1]}</span>`).join("<br>") + "</div>";
   if (method === "bank") {
     const b = cfg.bank;
-    h += `Please transfer <b>${money(order.total)}</b> to:<br>Bank: <b>${esc(b.bankName)}</b><br>Account name: <b>${esc(b.accountName)}</b><br>Account no: <b>${esc(b.accountNumber)}</b> <button type="button" class="cp" data-copy="${esc(b.accountNumber)}">Copy</button><br>Reference: <b>${orderId}</b> <button type="button" class="cp" data-copy="${orderId}">Copy</button><br>${esc(b.note || "")}<br><button class="wa" onclick="window.open('${wa("Hi, I have paid for order " + orderId + ". Sending my proof of payment.\n\n" + text).replace(/'/g, "%27")}')">Send proof on WhatsApp</button>`;
+    h += `Please transfer <b>${money(order.total)}</b> to:<br>Bank: <b>${esc(b.bankName)}</b><br>${b.accountName && b.accountName.trim() && b.accountName.trim() !== "-" ? `Account name: <b>${esc(b.accountName)}</b><br>` : ""}Account no: <b>${esc(b.accountNumber)}</b> <button type="button" class="cp" data-copy="${esc(b.accountNumber)}">Copy</button><br>Reference: <b>${orderId}</b> <button type="button" class="cp" data-copy="${orderId}">Copy</button><br>${esc(b.note || "")}<br><button class="wa" onclick="window.open('${wa("Hi, I have paid for order " + orderId + ". Sending my proof of payment.\n\n" + text).replace(/'/g, "%27")}')">Send proof on WhatsApp</button>`;
   } else if (method === "online") h += "Complete your payment in the new tab. We start your order once payment is confirmed.";
   else h += "WhatsApp has opened so you can send your order.";
   $("after").innerHTML = h;
