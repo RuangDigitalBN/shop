@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Game Items Shop</title>
 <style>
-:root{--bg:#14110a;--card:#211c10;--line:#3a321c;--text:#f5efe0;--mute:#a89f88;--accent:#f4b833;--onaccent:#1a1300;--green:#25d366;--dd:#f4b833;--ddtext:#1a1300;--err:#ff6b6b}
+:root{--bg:#121214;--card:#25272d;--line:#3a321c;--text:#ffffff;--mute:#a89f88;--accent:#f4b833;--onaccent:#1a1300;--green:#25d366;--dd:#f4b833;--ddtext:#1a1300;--err:#ff6b6b}
 *{box-sizing:border-box}
 body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
 header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:5}
@@ -49,6 +49,14 @@ h2{font-size:1rem;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid 
 .err{color:var(--err)}
 #foot input.bad{border-color:var(--err);box-shadow:0 0 0 1px var(--err)}
 </style>
+<script>
+/* Apply the colors saved from the last visit right away, so there is no flash of old colors */
+try {
+  var c = JSON.parse(localStorage.getItem("colors") || "{}");
+  var m = { bg: "--bg", card: "--card", line: "--line", text: "--text", mute: "--mute", accent: "--accent", accentText: "--onaccent", green: "--green", dropdown: "--dd", dropdownText: "--ddtext", error: "--err" };
+  for (var k in c) if (c[k] && m[k]) document.documentElement.style.setProperty(m[k], c[k]);
+} catch (e) {}
+</script>
 </head>
 <body>
 <header>
@@ -110,6 +118,7 @@ fetch("config.json?" + Date.now()).then(r => r.json()).then(c => {
   const rs = document.documentElement.style;
   const cmap = { bg: "--bg", card: "--card", line: "--line", text: "--text", mute: "--mute", accent: "--accent", accentText: "--onaccent", green: "--green", dropdown: "--dd", dropdownText: "--ddtext", error: "--err" };
   Object.entries(cfg.colors || {}).forEach(([k, v]) => { if (v && cmap[k]) rs.setProperty(cmap[k], v); });
+  try { localStorage.setItem("colors", JSON.stringify(cfg.colors || {})); } catch (e) {}
   if (cfg.logo) { $("logo").src = cfg.logo; $("logo").style.display = "block"; }
   if (cfg.banner) { $("banner").src = cfg.banner; $("banner").style.display = "block"; }
   const showClosed = () => {
