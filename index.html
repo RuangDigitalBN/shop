@@ -156,7 +156,7 @@ fetch("config.json?" + Date.now()).then(r => r.json()).then(c => {
   methods = [];
   if (cfg.bank && cfg.bank.enabled) methods.push(["bank", "Bank transfer"]);
   if (cfg.payment && cfg.payment.enabled) methods.push(["online", cfg.payment.label || "Pay online"]);
-  methods.push(["whatsapp", "Order via WhatsApp (we confirm first)"]);
+  methods.push(["whatsapp", "Order via WhatsApp (for confirmation)"]);
   const rows = parseCSV(csv).filter(r => r.some(x => x.trim()));
   const head = rows.shift().map(h => h.trim().toLowerCase());
   const col = n => head.indexOf(n);
