@@ -22,13 +22,27 @@
   "closedMessage": "We are temporarily closed. Please check back soon.",
   "whatsappNumber": "6738660234",
   "sheetUrl": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRl2225HJ-0vjxHDUBOealbu4fGqQJqbUandctavlQYMQ7K_v3EwbygXkj6MaqTMT-VZRpX7tt1SmmZ/pub?gid=1735583609&single=true&output=csv",
-  "bank": {
-    "enabled": true,
-    "bankName": "Bank Islam Brunei Darussalam (BIBD)",
-    "accountName": "",
-    "accountNumber": "00014020637209",
-    "note": "Use the order number as the transfer reference."
-  },
+    "bank": {
+  "enabled": true,
+  "bankName": "BIBD",
+  "accountName": "",
+  "accountNumber": "0000000000",
+  "referenceLabel": "Order number",
+  "note": "Please enter your order number in the transfer remarks box."
+    "texts": {
+  "orderReceived": "Order {order} received.",
+  "bankIntro": "Please transfer {amount} to:",
+  "bankLabel": "Bank",
+  "accountNameLabel": "Account name",
+  "accountNumberLabel": "Account no",
+  "copy": "Copy",
+  "copied": "Copied!",
+  "proofButton": "Send proof on WhatsApp",
+  "proofMessage": "Hi, I have paid for order {order}. Sending my proof of payment.",
+  "onlineMessage": "Complete your payment in the new tab. We start your order once payment is confirmed.",
+  "whatsappMessage": "WhatsApp has opened so you can send your order."
+},
+},
   "gameMethods": {
     "Roblox": ["whatsapp"]
   },
