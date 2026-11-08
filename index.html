@@ -20,6 +20,10 @@ input{width:100%;background:var(--card);border:1px solid var(--line);color:var(-
 #tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:6px}
 #tabs button{background:var(--card);color:var(--text);border:1px solid var(--line);white-space:nowrap;border-radius:99px;font-size:var(--tabfs,16px);padding:.5em .9em}
 #tabs button img{height:1.25em!important;width:1.25em!important}
+#subtabs{display:none;gap:6px;overflow-x:auto;padding-bottom:10px}
+#subtabs button{background:transparent;color:var(--mute);border:1px solid var(--line);border-radius:99px;white-space:nowrap;font-size:calc(var(--tabfs,16px)*.85);padding:.35em .8em}
+#subtabs button.on{background:var(--accent);color:var(--onaccent);border-color:var(--accent)}
+h3{font-size:.9rem;margin:16px 0 8px;color:var(--mute);font-weight:600}
 #tabs button.on{background:var(--accent);color:var(--onaccent);border-color:var(--accent)}
 h2{font-size:1rem;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cw,170px),1fr));gap:12px}
@@ -72,6 +76,7 @@ try {
 <main>
   <input id="q" placeholder="Search items...">
   <div id="tabs"></div>
+  <div id="subtabs"></div>
   <div id="list"></div>
 </main>
 <aside id="drawer">
@@ -89,7 +94,7 @@ try {
   </div>
 </aside>
 <script>
-let cfg = {}, items = [], games = [], active = "", cart = {};
+let cfg = {}, items = [], games = [], active = "", sub = "", cart = {};
 try { cart = JSON.parse(localStorage.getItem("cart") || "{}"); } catch (e) {}
 const $ = id => document.getElementById(id);
 const money = n => cfg.currency + Number(n).toFixed(2);
@@ -173,6 +178,7 @@ fetch("config.json?" + Date.now()).then(r => r.json()).then(c => {
       price: parseFloat((r[col("price")] || "").replace(/[^0-9.]/g, "")) || 0,
       image: (r[col("image")] || "").trim(),
       description: (r[col("description")] || "").trim(),
+      cat: (r[col("category")] || "").trim(),
       soldOut: /^(y|yes|true|1)$/i.test((r[col("soldout")] || "").trim())
     };
   }).filter(i => i.game && i.name);
@@ -191,15 +197,18 @@ fetch("config.json?" + Date.now()).then(r => r.json()).then(c => {
 function drawTabs() {
   $("tabs").innerHTML = ["", ...games].map(g =>
     `<button class="${g === active ? "on" : ""}" data-g="${esc(g)}">${gimg(g, 20)}${g ? esc(g) : "All"}</button>`).join("");
-  $("tabs").querySelectorAll("button").forEach(b => b.onclick = () => { active = b.dataset.g; drawTabs(); render(); });
+  $("tabs").querySelectorAll("button").forEach(b => b.onclick = () => { active = b.dataset.g; sub = ""; drawTabs(); render(); });
+  drawSubs();
 }
-function render() {
-  const q = $("q").value.toLowerCase();
-  const html = games.filter(g => !active || g === active).map(g => {
-    const list = items.map((it, idx) => ({ it, idx })).filter(({ it }) => it.game === g && it.name.toLowerCase().includes(q))
-      .sort((a, b) => a.it.price - b.it.price);
-    if (!list.length) return "";
-    return `<h2>${gimg(g, 28)}${esc(g)}</h2><div class="grid">` + list.map(({ it, idx }) => `
+function drawSubs() {
+  const cats = active ? [...new Set(items.filter(i => i.game === active && i.cat).map(i => i.cat))] : [];
+  if (!cats.includes(sub)) sub = "";
+  $("subtabs").style.display = cats.length ? "flex" : "none";
+  $("subtabs").innerHTML = cats.length ? ["", ...cats].map(c => `<button class="${c === sub ? "on" : ""}" data-c="${esc(c)}">${c ? esc(c) : "All"}</button>`).join("") : "";
+  $("subtabs").querySelectorAll("button").forEach(b => b.onclick = () => { sub = b.dataset.c; drawSubs(); render(); });
+}
+function cardHtml(it, idx) {
+  return `
       <div class="card">
         <div class="img">${(it.image || (cfg.gameImages || {})[it.game]) ? `<img src="${esc(it.image || cfg.gameImages[it.game])}" alt="" loading="lazy">` : "🎮"}</div>
         <div class="body">
@@ -208,7 +217,20 @@ function render() {
           <div class="price">${money(it.price)}</div>
           <button ${it.soldOut || cfg.closed || !it.price ? "disabled" : ""} onclick="add(${idx})">${cfg.closed ? "Closed" : it.soldOut ? "Sold out" : !it.price ? "Unavailable" : "Add to cart"}</button>
         </div>
-      </div>`).join("") + "</div>";
+      </div>`;
+}
+function render() {
+  const q = $("q").value.toLowerCase();
+  const html = games.filter(g => !active || g === active).map(g => {
+    const list = items.map((it, idx) => ({ it, idx })).filter(({ it }) => it.game === g && it.name.toLowerCase().includes(q) && (!sub || it.cat === sub))
+      .sort((a, b) => a.it.price - b.it.price);
+    if (!list.length) return "";
+    const cats = [...new Set(items.filter(i => i.game === g && i.cat).map(i => i.cat))];
+    const groups = cats.length
+      ? [...cats.map(c => [c, list.filter(x => x.it.cat === c)]), ["Other", list.filter(x => !x.it.cat)]]
+      : [["", list]];
+    return `<h2>${gimg(g, 28)}${esc(g)}</h2>` + groups.filter(gr => gr[1].length).map(([c, arr]) =>
+      (c ? `<h3>${esc(c)}</h3>` : "") + `<div class="grid">` + arr.map(x => cardHtml(x.it, x.idx)).join("") + "</div>").join("");
   }).join("");
   $("list").innerHTML = html || '<p class="empty">No items found.</p>';
 }
