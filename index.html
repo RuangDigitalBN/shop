@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Game Items Shop</title>
 <style>
-:root{--bg:#14110a;--card:#211c10;--line:#3a321c;--text:#f5efe0;--mute:#a89f88;--accent:#f4b833;--onaccent:#1a1300;--green:#25d366;--dd:#f4b833;--ddtext:#1a1300}
+:root{--bg:#14110a;--card:#211c10;--line:#3a321c;--text:#f5efe0;--mute:#a89f88;--accent:#f4b833;--onaccent:#1a1300;--green:#25d366;--dd:#f4b833;--ddtext:#1a1300;--err:#ff6b6b}
 *{box-sizing:border-box}
 body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
 header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:5}
@@ -46,6 +46,8 @@ h2{font-size:1rem;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid 
 #foot select option{background:var(--dd);color:var(--ddtext)}
 .total{display:flex;justify-content:space-between;font-weight:700}
 .empty{color:var(--mute);text-align:center;padding:36px 0}
+.err{color:var(--err)}
+#foot input.bad{border-color:var(--err);box-shadow:0 0 0 1px var(--err)}
 </style>
 </head>
 <body>
@@ -106,7 +108,7 @@ fetch("config.json?" + Date.now()).then(r => r.json()).then(c => {
   $("store").textContent = cfg.storeName; document.title = cfg.storeName;
   $("tag").textContent = cfg.tagline || "";
   const rs = document.documentElement.style;
-  const cmap = { bg: "--bg", card: "--card", line: "--line", text: "--text", mute: "--mute", accent: "--accent", accentText: "--onaccent", green: "--green", dropdown: "--dd", dropdownText: "--ddtext" };
+  const cmap = { bg: "--bg", card: "--card", line: "--line", text: "--text", mute: "--mute", accent: "--accent", accentText: "--onaccent", green: "--green", dropdown: "--dd", dropdownText: "--ddtext", error: "--err" };
   Object.entries(cfg.colors || {}).forEach(([k, v]) => { if (v && cmap[k]) rs.setProperty(cmap[k], v); });
   if (cfg.logo) { $("logo").src = cfg.logo; $("logo").style.display = "block"; }
   if (cfg.banner) { $("banner").src = cfg.banner; $("banner").style.display = "block"; }
@@ -193,6 +195,7 @@ function summary() {
   return t;
 }
 let info = {}, orderId = "", methods = [];
+document.addEventListener("input", e => e.target.classList && e.target.classList.remove("bad"));
 const toggleForm = hide => ["cName", "cContact", "method", "mNote", "totalRow", "orderBtn"].forEach(id => { $(id).style.display = hide ? "none" : ""; });
 document.addEventListener("click", e => {
   const t = e.target.closest(".cp");
@@ -229,11 +232,16 @@ function drawFields(L) {
 $("orderBtn").onclick = () => {
   const L = lines(), contact = $("cContact").value.trim();
   if (!L.length) return;
-  if (!contact || [...$("fields").querySelectorAll("input")].some(i => !i.value.trim())) {
-    $("after").innerHTML = "<b>Please fill in all fields marked *.</b>"; return;
+  document.querySelectorAll("#foot .bad").forEach(i => i.classList.remove("bad"));
+  const badInputs = [...$("fields").querySelectorAll("input")].filter(i => !i.value.trim());
+  if (!contact) badInputs.push($("cContact"));
+  if (badInputs.length) {
+    badInputs.forEach(i => i.classList.add("bad"));
+    $("after").innerHTML = '<b class="err">Please fill in all fields marked *.</b>'; return;
   }
   if (!/^\d{7,15}$/.test(contact.replace(/[\s+\-()]/g, ""))) {
-    $("after").innerHTML = "<b>Please enter a valid WhatsApp number with country code, e.g. 6738123456.</b>"; return;
+    $("cContact").classList.add("bad");
+    $("after").innerHTML = '<b class="err">Please enter a valid WhatsApp number with country code, e.g. 6738123456.</b>'; return;
   }
   const method = $("method").value;
   orderId = "GS" + Date.now().toString(36).toUpperCase().slice(-6);
