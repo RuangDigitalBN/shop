@@ -48,10 +48,12 @@
   },
   "gameFields": {
     "Mobile Legends (Global)": ["User ID", "Server ID"],
+    "PUBG Mobile (Global)": ["User ID"],
     "Roblox": ["Roblox username"]
   },
   "gameImages": {
   "Mobile Legends (Global)": "mlbb.jpg",
+  "PUBG Mobile (Global)": "pubgm.webp",
   "Roblox": "roblox.jpg",
   "Hotlink": "images/hotlink.png",
   "Digi": "images/digi.png"
