@@ -1,3 +1,5 @@
+import { GamesSection, PopularProductsSection } from "./StoreSections";
+import CartLink from "./CartLink";
 const games = [
   {
     name: "Mobile Legends",
@@ -89,12 +91,15 @@ export default function Home() {
             <a href="#how-it-works" className="transition hover:text-[#C6F36B]">How it works</a>
           </nav>
 
-          <a
-            href="#games"
-            className="rounded-full bg-[#C6F36B] px-5 py-3 text-[10px] font-black uppercase tracking-wider text-[#171717] transition hover:bg-white sm:text-xs"
-          >
-            Explore store ↗
-          </a>
+          <div className="flex items-center gap-2 sm:gap-3">
+  <CartLink />
+  <a
+    href="#games"
+    className="rounded-full bg-[#C6F36B] px-4 py-3 text-[9px] font-black uppercase tracking-wider text-[#171717] transition hover:bg-white sm:px-5 sm:text-xs"
+  >
+    Explore store ↗
+  </a>
+</div>
         </div>
       </header>
 
@@ -140,20 +145,31 @@ export default function Home() {
               </a>
             </div>
 
-            <div className="mt-14 flex flex-wrap gap-x-8 gap-y-4 border-t border-white/10 pt-7">
-              <div>
-                <p className="text-lg font-black text-[#F2F0E9]">LOCAL</p>
-                <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.16em] text-white/40">Brunei focused</p>
-              </div>
-              <div>
-                <p className="text-lg font-black text-[#F2F0E9]">DIGITAL</p>
-                <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.16em] text-white/40">Convenient shopping</p>
-              </div>
-              <div>
-                <p className="text-lg font-black text-[#F2F0E9]">CONFIDENT</p>
-                <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.16em] text-white/40">Shop with peace of mind</p>
-              </div>
-            </div>
+
+<div className="mt-10 border-t border-white/10 pt-7 sm:mt-14">
+  <div className="grid grid-cols-2 gap-y-6 sm:grid-cols-3 sm:gap-8">
+    <div className="text-left">
+      <p className="text-lg font-black text-[#F2F0E9]">LOCAL</p>
+      <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.16em] text-white/40">
+        Brunei focused
+      </p>
+    </div>
+
+    <div className="ml-auto w-fit text-left sm:ml-0 sm:w-auto">
+      <p className="text-lg font-black text-[#F2F0E9]">DIGITAL</p>
+      <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.16em] text-white/40">
+        Convenient shopping
+      </p>
+    </div>
+
+    <div className="col-span-2 text-left sm:col-span-1">
+      <p className="text-lg font-black text-[#F2F0E9]">CONFIDENT</p>
+      <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.16em] text-white/40">
+        Shop with peace of mind
+      </p>
+    </div>
+  </div>
+</div>
           </div>
 
           {/* Hero graphic */}
@@ -187,40 +203,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Games */}
-      <section id="games" className="mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-24">
-        <div className="mb-9 flex flex-wrap items-end justify-between gap-5">
-          <div>
-            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-[#C6F36B]">Find your next move</p>
-            <h2 className="text-3xl font-black uppercase tracking-[-0.055em] sm:text-5xl">
-              Choose your <span className="text-white/35">game.</span>
-            </h2>
-          </div>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-white/35">01 / GAME DIRECTORY</span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {games.map((game, index) => (
-            <a
-              key={game.name}
-              href="#popular"
-              className={`group relative flex min-h-52 flex-col justify-between overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br ${game.gradient} p-5 transition duration-300 hover:-translate-y-1 hover:border-[#C6F36B]/60`}
-            >
-              <span className="absolute -right-5 -top-7 text-8xl font-black italic text-white/[0.07] transition group-hover:scale-110">
-                {game.symbol}
-              </span>
-              <div className="relative flex items-center justify-between">
-                <span className="text-[9px] font-black tracking-widest text-white/50">0{index + 1}</span>
-                <span className="text-lg text-[#C6F36B]">↗</span>
-              </div>
-              <div className="relative">
-                <p className="mb-2 text-[9px] font-black tracking-[0.16em] text-white/45">{game.category}</p>
-                <h3 className="text-lg font-black uppercase leading-tight tracking-tight">{game.name}</h3>
-              </div>
-            </a>
-          ))}
-        </div>
-      </section>
+      <GamesSection />
 
       {/* Trust strip */}
       <section className="border-y border-white/10 bg-[#202020]">
@@ -249,46 +232,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Popular products */}
-      <section id="popular" className="mx-auto max-w-7xl px-5 py-20 lg:px-8 lg:py-24">
-        <div className="mb-9 flex flex-wrap items-end justify-between gap-5">
-          <div>
-            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-[#C6F36B]">Level up your experience</p>
-            <h2 className="text-3xl font-black uppercase tracking-[-0.055em] sm:text-5xl">
-              Popular <span className="text-white/35">right now.</span>
-            </h2>
-          </div>
-          <a href="#games" className="text-[10px] font-black uppercase tracking-widest text-[#C6F36B] hover:text-white">
-            Browse games ↗
-          </a>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {products.map((product, index) => (
-            <a
-              href="#games"
-              key={product.name}
-              className="group overflow-hidden rounded-2xl border border-white/10 bg-[#202020] transition hover:-translate-y-1 hover:border-[#C6F36B]/50"
-            >
-              <div className={`relative flex h-40 items-center justify-center overflow-hidden bg-gradient-to-br ${product.gradient}`}>
-                <span className="absolute -right-5 -top-10 text-9xl font-black italic text-white/10">{product.game}</span>
-                <span className="relative text-6xl drop-shadow-lg transition duration-300 group-hover:scale-110">{product.symbol}</span>
-                <span className="absolute left-4 top-4 rounded-full border border-white/20 bg-black/20 px-3 py-1 text-[8px] font-black tracking-widest text-white/75">
-                  {product.type}
-                </span>
-              </div>
-              <div className="p-5">
-                <p className="text-[9px] font-black tracking-[0.16em] text-[#C6F36B]">{product.game}</p>
-                <h3 className="mt-2 text-sm font-black uppercase tracking-tight">{product.name}</h3>
-                <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">View options</span>
-                  <span className="text-lg text-[#C6F36B] transition group-hover:translate-x-1">→</span>
-                </div>
-              </div>
-            </a>
-          ))}
-        </div>
-      </section>
+            {/* Popular products */}
+      <PopularProductsSection />
 
       {/* How it works */}
       <section id="how-it-works" className="relative overflow-hidden border-y border-white/10 bg-[#202020]">
