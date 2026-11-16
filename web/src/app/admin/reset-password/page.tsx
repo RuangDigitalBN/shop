@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 export default function ResetPasswordPage() {
@@ -55,9 +56,9 @@ export default function ResetPasswordPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#171717] px-5 py-12 text-[#F2F0E9]">
       <div className="w-full max-w-md">
-        <a href="/" className="text-2xl font-black italic">
+        <Link href="/" className="text-2xl font-black italic">
           RUANG<span className="text-[#C6F36B]">.</span>
-        </a>
+        </Link>
 
         <h1 className="mt-12 text-4xl font-black">
           Reset password.

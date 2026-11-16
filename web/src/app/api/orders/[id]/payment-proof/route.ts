@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_REQUEST_SIZE = MAX_FILE_SIZE + 100_000;
 
 const ALLOWED_TYPES = [
   "image/jpeg",
@@ -20,6 +21,114 @@ function errorResponse(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
 }
 
+class RequestBodyError extends Error {
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
+    super(message);
+  }
+}
+
+async function readBoundedFormData(
+  request: Request
+): Promise<FormData> {
+  const contentType = request.headers.get("content-type") ?? "";
+
+  if (
+    !contentType.toLowerCase().startsWith("multipart/form-data;") ||
+    !contentType.toLowerCase().includes("boundary=")
+  ) {
+    throw new RequestBodyError("Invalid receipt upload.", 400);
+  }
+
+  const declaredLength = request.headers.get("content-length");
+
+  if (declaredLength !== null) {
+    const length = Number(declaredLength);
+
+    if (!Number.isSafeInteger(length) || length < 0) {
+      throw new RequestBodyError("Invalid request size.", 400);
+    }
+
+    if (length > MAX_REQUEST_SIZE) {
+      throw new RequestBodyError(
+        "File is too large. Maximum size is 5 MB.",
+        413
+      );
+    }
+  }
+
+  if (!request.body) {
+    throw new RequestBodyError("Missing receipt upload.", 400);
+  }
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) break;
+
+      received += value.byteLength;
+
+      if (received > MAX_REQUEST_SIZE) {
+        await reader.cancel().catch(() => undefined);
+        throw new RequestBodyError(
+          "File is too large. Maximum size is 5 MB.",
+          413
+        );
+      }
+
+      chunks.push(value.slice());
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(received);
+  let offset = 0;
+
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  try {
+    return await new Response(bytes, {
+      headers: { "Content-Type": contentType },
+    }).formData();
+  } catch {
+    throw new RequestBodyError("Invalid receipt upload.", 400);
+  }
+}
+
+type FinalizeResult = {
+  ok: boolean;
+  code: string;
+  orderId?: string;
+  orderNumber?: string;
+  paymentStatus?: string | null;
+  orderStatus?: string | null;
+  receiptAlreadyAttached?: boolean;
+  receiptAccepted?: boolean;
+  orderClosed?: boolean;
+};
+
+function isFinalizeResult(value: unknown): value is FinalizeResult {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "ok" in value &&
+    typeof value.ok === "boolean" &&
+    "code" in value &&
+    typeof value.code === "string"
+  );
+}
+
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -27,8 +136,6 @@ export async function POST(
   request: Request,
   context: RouteContext
 ) {
-  let uploadedFilePath: string | null = null;
-
   try {
     const { id: orderId } = await context.params;
 
@@ -36,21 +143,7 @@ export async function POST(
       return errorResponse("Invalid order.", 400);
     }
 
-    const contentLength = Number(
-      request.headers.get("content-length") ?? 0
-    );
-
-    if (
-      Number.isFinite(contentLength) &&
-      contentLength > MAX_FILE_SIZE + 100_000
-    ) {
-      return errorResponse(
-        "File is too large. Maximum size is 5 MB.",
-        413
-      );
-    }
-
-    const formData = await request.formData();
+    const formData = await readBoundedFormData(request);
     const file = formData.get("file");
     const idempotencyKey = formData.get("idempotencyKey");
 
@@ -201,72 +294,121 @@ export async function POST(
       );
     }
 
-    uploadedFilePath = filePath;
+    const { data, error: finalizeError } =
+      await supabaseAdmin.rpc("finalize_order_receipt", {
+        p_order_id: orderId,
+        p_idempotency_key: idempotencyKey,
+        p_file_path: filePath,
+        p_expected_proof_path: order.payment_proof_path,
+      });
 
-    // Update only if the order is still eligible.
-    // This prevents a late upload from replacing a verified
-    // or cancelled order's payment receipt.
-    const { data: updatedOrder, error: updateError } =
-      await supabaseAdmin
-        .from("orders")
-        .update({
-          payment_proof_path: filePath,
-          payment_status: "submitted",
-        })
-        .eq("id", orderId)
-        .eq("idempotency_key", idempotencyKey)
-        .in("payment_status", ["pending", "submitted"])
-        .neq("order_status", "cancelled")
-        .neq("order_status", "completed")
-        .select("id")
-        .maybeSingle();
+    if (finalizeError || !isFinalizeResult(data)) {
+      // The RPC may have committed despite a lost response. Never delete the
+      // immutable upload; checkout will recover using actual order state.
+      console.error("Receipt finalization outcome is unknown", {
+        orderId,
+        filePath,
+        databaseCode: finalizeError?.code,
+      });
 
-    if (updateError || !updatedOrder) {
-      await supabaseAdmin.storage
-        .from("payment-proofs")
-        .remove([filePath]);
-
-      uploadedFilePath = null;
-
-      if (updateError) {
-        return errorResponse(
-          "Your receipt could not be attached to the order. Please try again.",
-          500
-        );
-      }
-
-      return errorResponse(
-        "This order can no longer accept payment receipts.",
-        409
+      return NextResponse.json(
+        {
+          success: false,
+          code: "FINALIZATION_UNKNOWN",
+          error:
+            "Unable to confirm your receipt. Retry using the same checkout session.",
+        },
+        { status: 503 }
       );
     }
 
-    // The new receipt is saved. Remove the previous one.
-    if (order.payment_proof_path) {
-      await supabaseAdmin.storage
-        .from("payment-proofs")
-        .remove([order.payment_proof_path]);
+    const commonResponse = {
+      code: data.code,
+      orderId: data.orderId ?? orderId,
+      orderNumber: data.orderNumber ?? order.order_number,
+      paymentStatus: data.paymentStatus ?? null,
+      orderStatus: data.orderStatus ?? null,
+      receiptAlreadyAttached:
+        data.receiptAlreadyAttached === true,
+      receiptAccepted: data.receiptAccepted === true,
+      orderClosed: data.orderClosed === true,
+    };
+
+    if (!data.ok) {
+      const status =
+        data.code === "ORDER_NOT_FOUND" ? 404 :
+        data.code === "ORDER_EXPIRED" ? 410 :
+        data.code === "INVALID_RECEIPT_PATH" ? 400 :
+        data.code === "RECEIPT_OBJECT_MISSING" ? 503 :
+        409;
+
+      const messages: Record<string, string> = {
+        ORDER_EXPIRED:
+          "The 30-minute deadline for this order has passed.",
+        ORDER_CLOSED: "This order is already closed.",
+        ORDER_CLOSED_RECEIPT_ALREADY_ATTACHED:
+          "The receipt was attached, but this order is already closed.",
+        ORDER_CHANGED:
+          "This order changed during the upload. Retry using the same checkout session.",
+        RECEIPT_NOT_ALLOWED:
+          "This order can no longer accept payment receipts.",
+        RECEIPT_TIME_UNKNOWN:
+          "This order requires manual review. Contact Ruang Digital with the order number.",
+        ORDER_STATE_CONFLICT:
+          "This order requires manual review.",
+        RECEIPT_OBJECT_MISSING:
+          "The receipt upload could not be confirmed. Retry using the same checkout session.",
+      };
+
+      return NextResponse.json(
+        {
+          success: false,
+          ...commonResponse,
+          error:
+            messages[data.code] ??
+            "This receipt could not be attached to the order.",
+        },
+        { status }
+      );
     }
 
-    uploadedFilePath = null;
+    if (
+      data.orderClosed === true ||
+      !["ATTACHED", "ALREADY_ATTACHED"].includes(data.code)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "FINALIZATION_UNKNOWN",
+          error:
+            "The receipt result could not be confirmed. Retry using the same checkout session.",
+        },
+        { status: 503 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      orderId,
-      orderNumber: order.order_number,
-      message: "Payment receipt uploaded successfully.",
+      ...commonResponse,
+      message:
+        data.code === "ALREADY_ATTACHED"
+          ? "Payment receipt was already attached."
+          : "Payment receipt uploaded successfully.",
     });
-  } catch {
-    // Clean up a newly uploaded file if an unexpected error occurs.
-    if (uploadedFilePath) {
-      await supabaseAdmin.storage
-        .from("payment-proofs")
-        .remove([uploadedFilePath]);
+  } catch (error) {
+    if (error instanceof RequestBodyError) {
+      return errorResponse(error.message, error.status);
     }
 
-    return errorResponse(
-      "Something went wrong while uploading your receipt.",
-      500
+    // An upload or finalization may have succeeded. Never delete here.
+    return NextResponse.json(
+      {
+        success: false,
+        code: "UPLOAD_OUTCOME_UNKNOWN",
+        error:
+          "Unable to confirm the upload. Retry using the same checkout session.",
+      },
+      { status: 503 }
     );
   }
 }

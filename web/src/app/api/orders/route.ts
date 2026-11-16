@@ -20,8 +20,78 @@ type CheckoutRequest = {
   items: SubmittedItem[];
 };
 
+type OrderSnapshot = {
+  id: string;
+  order_number: string;
+  customer_contact: string;
+  payment_status: string | null;
+  order_status: string | null;
+  payment_proof_path: string | null;
+  cancellation_reason: string | null;
+  created_at: string | null;
+};
+
+const ORDER_SNAPSHOT_SELECT =
+  "id, order_number, customer_contact, payment_status, order_status, payment_proof_path, cancellation_reason, created_at" as const;
+
 function errorResponse(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
+}
+
+function getReceiptDeadline(createdAt: string | null) {
+  if (!createdAt) return null;
+
+  const createdAtMs = Date.parse(createdAt);
+
+  if (!Number.isFinite(createdAtMs)) return null;
+
+  return new Date(createdAtMs + 30 * 60 * 1000).toISOString();
+}
+
+function orderResponse(
+  order: OrderSnapshot,
+  customerContact: string,
+  reusedOrder: boolean
+) {
+  if (order.customer_contact !== customerContact) {
+    return errorResponse(
+      "This checkout session cannot be used.",
+      409
+    );
+  }
+
+  const orderClosed =
+    order.order_status === "cancelled" ||
+    order.order_status === "completed";
+
+  const stateCode =
+    order.cancellation_reason === "unpaid_timeout"
+      ? "ORDER_EXPIRED"
+      : orderClosed
+        ? "ORDER_CLOSED"
+        : "ORDER_OPEN";
+
+  const receiptSubmitted =
+    (
+      order.payment_status === "submitted" ||
+      order.payment_status === "verified"
+    ) &&
+    order.payment_proof_path !== null;
+
+  return NextResponse.json({
+    success: true,
+    orderId: order.id,
+    orderNumber: order.order_number,
+    reusedOrder,
+    // Retain this field for compatibility, but derive it from real state.
+    alreadySubmitted: receiptSubmitted,
+    paymentStatus: order.payment_status,
+    orderStatus: order.order_status,
+    hasReceipt: order.payment_proof_path !== null,
+    orderClosed,
+    stateCode,
+    receiptDeadline: getReceiptDeadline(order.created_at),
+  });
 }
 
 const UUID_REGEX =
@@ -100,7 +170,7 @@ export async function POST(request: Request) {
     const { data: existingOrder, error: existingError } =
       await supabaseAdmin
         .from("orders")
-        .select("id, order_number, customer_contact")
+        .select(ORDER_SNAPSHOT_SELECT)
         .eq("idempotency_key", idempotencyKey)
         .maybeSingle();
 
@@ -114,19 +184,11 @@ export async function POST(request: Request) {
 }
 
     if (existingOrder) {
-      if (existingOrder.customer_contact !== customerContact) {
-        return errorResponse(
-          "This checkout session cannot be used.",
-          409
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        orderId: existingOrder.id,
-        orderNumber: existingOrder.order_number,
-        alreadySubmitted: true,
-      });
+      return orderResponse(
+        existingOrder as OrderSnapshot,
+        customerContact,
+        true
+      );
     }
 
     // Enforce bank transfer availability on the server.
@@ -307,24 +369,16 @@ export async function POST(request: Request) {
       // Handle simultaneous submissions with the same checkout key.
       const { data: duplicateOrder } = await supabaseAdmin
         .from("orders")
-        .select("id, order_number, customer_contact")
+        .select(ORDER_SNAPSHOT_SELECT)
         .eq("idempotency_key", idempotencyKey)
         .maybeSingle();
 
       if (duplicateOrder) {
-        if (duplicateOrder.customer_contact !== customerContact) {
-          return errorResponse(
-            "This checkout session cannot be used.",
-            409
-          );
-        }
-
-        return NextResponse.json({
-          success: true,
-          orderId: duplicateOrder.id,
-          orderNumber: duplicateOrder.order_number,
-          alreadySubmitted: true,
-        });
+        return orderResponse(
+          duplicateOrder as OrderSnapshot,
+          customerContact,
+          true
+        );
       }
 
       if (orderError.message.includes("Insufficient stock")) {
@@ -347,12 +401,32 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      orderId,
-      orderNumber,
-      alreadySubmitted: false,
-    });
+    const { data: createdOrder, error: createdOrderError } =
+      await supabaseAdmin
+        .from("orders")
+        .select(ORDER_SNAPSHOT_SELECT)
+        .eq("id", orderId)
+        .eq("idempotency_key", idempotencyKey)
+        .single();
+
+    if (createdOrderError || !createdOrder) {
+      // Creation may have committed. Retrying the same key recovers it.
+      return NextResponse.json(
+        {
+          success: false,
+          code: "ORDER_CONFIRMATION_UNKNOWN",
+          error:
+            "Unable to confirm your order. Retry using the same checkout session.",
+        },
+        { status: 503 }
+      );
+    }
+
+    return orderResponse(
+      createdOrder as OrderSnapshot,
+      customerContact,
+      false
+    );
   } catch {
     return errorResponse(
       "Something went wrong while processing your order.",

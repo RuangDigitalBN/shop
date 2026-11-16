@@ -14,6 +14,8 @@ type OrderItem = {
   quantity: number;
   line_total: number | string;
   product_details: {
+    player_id?: string;
+    server_id?: string;
     playerId?: string;
     zoneId?: string;
   } | null;
@@ -32,7 +34,6 @@ type Order = {
   payment_proof_path: string | null;
   created_at: string;
   items: OrderItem[];
-  receiptUrl?: string | null;
 };
 
 type AdminAction =
@@ -78,17 +79,14 @@ export default function AdminOrdersPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [busyOrder, setBusyOrder] = useState<string | null>(null);
+  const [reviewedReceiptPaths, setReviewedReceiptPaths] =
+    useState<Record<string, string>>({});
 
-  const loadOrders = useCallback(async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
+  const loadOrders = useCallback(() => {
+    return supabase.auth.getUser().then(async ({
+      data: { user },
+      error: authError,
+    }) => {
       if (authError || !user) {
         router.replace("/admin/login");
         return;
@@ -144,41 +142,95 @@ export default function AdminOrdersPage() {
         itemMap.set(orderId, existing);
       }
 
-      const result: Order[] = await Promise.all(
-        (orderData ?? []).map(async (order) => {
-          let receiptUrl: string | null = null;
-
-          if (order.payment_proof_path) {
-            const { data } = await supabase.storage
-              .from("payment-proofs")
-              .createSignedUrl(order.payment_proof_path, 300);
-
-            receiptUrl = data?.signedUrl ?? null;
-          }
-
-          return {
-            ...order,
-            items: itemMap.get(order.id) ?? [],
-            receiptUrl,
-          } as Order;
-        })
+      const result: Order[] = (orderData ?? []).map(
+        (order) => ({
+          ...order,
+          items: itemMap.get(order.id) ?? [],
+        }) as Order
       );
 
       setOrders(result);
-    } catch (err) {
+    }).catch((err: unknown) => {
       setError(
         err instanceof Error ? err.message : "Unable to load orders."
       );
-    } finally {
+    }).finally(() => {
       setLoading(false);
-    }
+    });
   }, [router]);
 
   useEffect(() => {
     void loadOrders();
   }, [loadOrders]);
 
+  async function refreshOrders() {
+    setLoading(true);
+    setError("");
+    await loadOrders();
+  }
+
+  async function handleOpenReceipt(order: Order) {
+    const proofPath = order.payment_proof_path;
+
+    if (!proofPath) return;
+
+    // Open synchronously so browser popup protection keeps the user gesture.
+    const receiptWindow = window.open("about:blank", "_blank");
+
+    if (!receiptWindow) {
+      setError(
+        "The receipt window was blocked. Allow pop-ups and try again."
+      );
+      return;
+    }
+
+    receiptWindow.opener = null;
+    setError("");
+
+    const { data, error: signedUrlError } = await supabase.storage
+      .from("payment-proofs")
+      .createSignedUrl(proofPath, 300);
+
+    if (signedUrlError || !data?.signedUrl) {
+      receiptWindow.close();
+      setError("Unable to open the payment receipt.");
+      return;
+    }
+
+    receiptWindow.location.replace(data.signedUrl);
+
+    // Verification must send this exact immutable reviewed path.
+    setReviewedReceiptPaths((current) => ({
+      ...current,
+      [order.id]: proofPath,
+    }));
+  }
+
   async function handleAction(order: Order, action: AdminAction) {
+    const reviewedProofPath =
+      reviewedReceiptPaths[order.id] ?? null;
+
+    if (
+      action === "verify_payment" &&
+      (
+        order.payment_proof_path === null ||
+        reviewedProofPath !== order.payment_proof_path
+      )
+    ) {
+      setError("Open the current receipt before verifying payment.");
+      return;
+    }
+
+    // Capture the browser's snapshot before confirmation or other awaits.
+    const expected = {
+      paymentStatus: order.payment_status,
+      orderStatus: order.order_status,
+      proofPath:
+        action === "verify_payment"
+          ? reviewedProofPath
+          : order.payment_proof_path,
+    };
+
     const labels: Record<AdminAction, string> = {
       verify_payment: "verify this payment",
       reject_payment: "reject this payment",
@@ -210,17 +262,21 @@ export default function AdminOrdersPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, expected }),
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error ?? "Unable to update order.");
+        const responseError =
+          result.error ?? "Unable to update order.";
+
+        await refreshOrders();
+        throw new Error(responseError);
       }
 
       setMessage(`${order.order_number}: ${result.message}`);
-      await loadOrders();
+      await refreshOrders();
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Unable to update order."
@@ -281,7 +337,7 @@ export default function AdminOrdersPage() {
           </div>
 
           <button
-            onClick={() => void loadOrders()}
+            onClick={() => void refreshOrders()}
             disabled={loading}
             className="rounded-full border border-white/15 px-5 py-3 text-xs font-black uppercase tracking-wider hover:border-[#C6F36B] disabled:opacity-40"
           >
@@ -362,13 +418,26 @@ export default function AdminOrdersPage() {
         ) : (
           <div className="mt-8 space-y-5">
             {filteredOrders.map((order) => {
-              const canVerifyPayment =
-  order.payment_status === "submitted" &&
-  Boolean(order.payment_proof_path);
+              const isOpen =
+                order.order_status !== "cancelled" &&
+                order.order_status !== "completed";
 
-const canRejectPayment =
-  order.payment_status === "pending" ||
-  order.payment_status === "submitted";
+              const canOfferVerification =
+                isOpen &&
+                order.payment_status === "submitted" &&
+                Boolean(order.payment_proof_path);
+
+              const reviewedCurrentReceipt =
+                order.payment_proof_path !== null &&
+                reviewedReceiptPaths[order.id] ===
+                  order.payment_proof_path;
+
+              const canRejectPayment =
+                isOpen &&
+                (
+                  order.payment_status === "pending" ||
+                  order.payment_status === "submitted"
+                );
 
               const canCancel =
                 order.order_status !== "cancelled" &&
@@ -413,12 +482,12 @@ const canRejectPayment =
 
                     <div className="flex flex-wrap content-start gap-2">
                       <span
-                        className={`h-fit rounded-full border px-3 py-1 text-[10px] font-black uppercase ${statusStyle(order.payment_status)}`}
+                        className={`h-fit rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wider ${statusStyle(order.payment_status)}`}
                       >
                         Payment: {order.payment_status}
                       </span>
                       <span
-                        className={`h-fit rounded-full border px-3 py-1 text-[10px] font-black uppercase ${statusStyle(order.order_status)}`}
+                        className={`h-fit rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wider ${statusStyle(order.order_status)}`}
                       >
                         Order: {order.order_status}
                       </span>
@@ -433,6 +502,8 @@ const canRejectPayment =
                     <div className="mt-3 space-y-3">
                       {order.items.map((item) => {
                         const details = item.product_details ?? {};
+                        const playerId = details.player_id || details.playerId;
+                        const serverId = details.server_id || details.zoneId;
 
                         return (
                           <div
@@ -446,14 +517,14 @@ const canRejectPayment =
                                   SKU: {item.product_sku}
                                 </p>
                               )}
-                              {details.playerId && (
+                              {playerId && (
                                 <p className="mt-1 text-xs text-white/50">
-                                  Player ID: {details.playerId}
+                                  Player ID: {playerId}
                                 </p>
                               )}
-                              {details.zoneId && (
+                              {serverId && (
                                 <p className="mt-1 text-xs text-white/50">
-                                  Server ID: {details.zoneId}
+                                  Server ID: {serverId}
                                 </p>
                               )}
                               <p className="mt-1 text-xs text-white/40">
@@ -478,15 +549,14 @@ const canRejectPayment =
                       </p>
                     </div>
 
-                    {order.receiptUrl ? (
-                      <a
-                        href={order.receiptUrl}
-                        target="_blank"
-                        rel="noreferrer"
+                    {order.payment_proof_path ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleOpenReceipt(order)}
                         className="rounded-full border border-white/20 px-4 py-3 text-xs font-black uppercase tracking-wider hover:border-[#C6F36B] hover:text-[#C6F36B]"
                       >
                         View payment receipt ↗
-                      </a>
+                      </button>
                     ) : (
                       <span className="text-xs text-white/30">
                         No receipt uploaded
@@ -495,13 +565,18 @@ const canRejectPayment =
                   </div>
 
                   <div className="mt-5 flex flex-wrap gap-2 border-t border-white/10 pt-5">
-                    {canVerifyPayment && (
+                    {canOfferVerification && (
   <button
     onClick={() => void handleAction(order, "verify_payment")}
-    disabled={busyOrder === order.id}
+    disabled={
+      busyOrder === order.id ||
+      !reviewedCurrentReceipt
+    }
     className="rounded-full bg-[#C6F36B] px-4 py-3 text-xs font-black uppercase tracking-wider text-[#171717] hover:bg-white disabled:opacity-40"
   >
-    Verify payment
+    {reviewedCurrentReceipt
+      ? "Verify payment"
+      : "Open receipt to verify"}
   </button>
 )}
 
@@ -557,7 +632,7 @@ const canRejectPayment =
                       </span>
                     )}
 
-                    {!canVerifyPayment &&
+                    {!canOfferVerification &&
                     !canRejectPayment &&
                     !canCancel &&
                     !canProcess &&

@@ -123,6 +123,13 @@ export async function POST(
         ? body.action
         : null;
 
+    const expected =
+      typeof body === "object" &&
+      body !== null &&
+      "expected" in body
+        ? body.expected
+        : null;
+
     const allowedActions: AdminAction[] = [
       "verify_payment",
       "reject_payment",
@@ -138,177 +145,118 @@ export async function POST(
       return errorResponse("Invalid order action.", 400);
     }
 
-    // Retrieve current order information.
-    const { data: order, error: orderError } =
-      await supabaseAdmin
-        .from("orders")
-        .select("id, order_number, payment_status, order_status, payment_proof_path")
-        .eq("id", orderId)
-        .maybeSingle();
-
-    if (orderError) {
+    if (
+      typeof expected !== "object" ||
+      expected === null ||
+      Array.isArray(expected)
+    ) {
       return errorResponse(
-        "Unable to retrieve this order.",
-        500
+        "Refresh the order before taking this action.",
+        400
       );
     }
 
-    if (!order) {
-      return errorResponse("Order not found.", 404);
-    }
+    const snapshot = expected as Record<string, unknown>;
 
-    let newPaymentStatus = order.payment_status ?? "pending";
-    let newOrderStatus = order.order_status ?? "pending";
-
-    switch (action as AdminAction) {
-      case "verify_payment":
-        if (newPaymentStatus !== "submitted") {
-          return errorResponse(
-            "A payment receipt must be submitted before verification.",
-            409
-          );
-        }
-
-        if (!order.payment_proof_path) {
-          return errorResponse(
-            "No payment receipt was found for this order.",
-            409
-          );
-        }
-
-        if (
-          newOrderStatus === "cancelled" ||
-          newOrderStatus === "completed"
-        ) {
-          return errorResponse(
-            "This order can no longer be verified.",
-            409
-          );
-        }
-
-        newPaymentStatus = "verified";
-        newOrderStatus = "processing";
-        break;
-
-      case "reject_payment":
-        if (
-          newPaymentStatus !== "pending" &&
-          newPaymentStatus !== "submitted"
-        ) {
-          return errorResponse(
-            "Only pending or submitted payments can be rejected.",
-            409
-          );
-        }
-
-        if (
-          newOrderStatus === "cancelled" ||
-          newOrderStatus === "completed"
-        ) {
-          return errorResponse(
-            "This order can no longer be rejected.",
-            409
-          );
-        }
-
-        newPaymentStatus = "rejected";
-        newOrderStatus = "cancelled";
-        break;
-
-      case "cancel_order":
-        if (
-          newOrderStatus === "cancelled" ||
-          newOrderStatus === "completed"
-        ) {
-          return errorResponse(
-            "This order is already closed.",
-            409
-          );
-        }
-
-        if (newPaymentStatus === "verified") {
-          return errorResponse(
-            "Verified orders require a separate refund process before cancellation.",
-            409
-          );
-        }
-
-        newOrderStatus = "cancelled";
-        break;
-
-      case "mark_processing":
-        if (newPaymentStatus !== "verified") {
-          return errorResponse(
-            "Payment must be verified before processing.",
-            409
-          );
-        }
-
-        if (
-          newOrderStatus === "cancelled" ||
-          newOrderStatus === "completed"
-        ) {
-          return errorResponse(
-            "This order cannot be moved to processing.",
-            409
-          );
-        }
-
-        newOrderStatus = "processing";
-        break;
-
-      case "complete_order":
-        if (newPaymentStatus !== "verified") {
-          return errorResponse(
-            "Payment must be verified before completing an order.",
-            409
-          );
-        }
-
-        if (
-          newOrderStatus !== "processing"
-        ) {
-          return errorResponse(
-            "Only processing orders can be completed.",
-            409
-          );
-        }
-
-        newOrderStatus = "completed";
-        break;
-    }
-
-    // Update order through the protected database function.
-    const { error: updateError } = await supabaseAdmin.rpc(
-      "release_order_stock",
-      {
-        p_order_id: orderId,
-        p_new_order_status: newOrderStatus,
-        p_new_payment_status: newPaymentStatus,
-      }
-    );
-
-    if (updateError) {
-      const isConflict =
-        updateError.message.includes("already closed") ||
-        updateError.message.includes("cannot") ||
-        updateError.message.includes("must be") ||
-        updateError.message.includes("current state");
-
+    if (
+      typeof snapshot.paymentStatus !== "string" ||
+      snapshot.paymentStatus.length === 0 ||
+      snapshot.paymentStatus.length > 50 ||
+      typeof snapshot.orderStatus !== "string" ||
+      snapshot.orderStatus.length === 0 ||
+      snapshot.orderStatus.length > 50 ||
+      !Object.prototype.hasOwnProperty.call(snapshot, "proofPath") ||
+      (
+        snapshot.proofPath !== null &&
+        (
+          typeof snapshot.proofPath !== "string" ||
+          snapshot.proofPath.length === 0 ||
+          snapshot.proofPath.length > 512
+        )
+      )
+    ) {
       return errorResponse(
-        isConflict
-          ? "This order has changed or can no longer accept that action. Refresh and try again."
-          : "Unable to update this order. Please try again.",
-        isConflict ? 409 : 500
+        "Invalid order snapshot. Refresh and try again.",
+        400
+      );
+    }
+
+    if (
+      action === "verify_payment" &&
+      typeof snapshot.proofPath !== "string"
+    ) {
+      return errorResponse(
+        "Open the current receipt before verifying payment.",
+        409
+      );
+    }
+
+    const { data: transition, error: transitionError } =
+      await supabaseAdmin.rpc("apply_admin_order_action", {
+        p_order_id: orderId,
+        p_action: action,
+        p_expected_payment_status: snapshot.paymentStatus,
+        p_expected_order_status: snapshot.orderStatus,
+        p_expected_proof_path: snapshot.proofPath,
+      });
+
+    if (
+      transitionError ||
+      typeof transition !== "object" ||
+      transition === null ||
+      !("ok" in transition) ||
+      typeof transition.ok !== "boolean" ||
+      !("code" in transition) ||
+      typeof transition.code !== "string"
+    ) {
+      // The RPC may have committed. Never retry the action automatically.
+      return NextResponse.json(
+        {
+          success: false,
+          code: "ADMIN_ACTION_OUTCOME_UNKNOWN",
+          error:
+            "Unable to confirm the update. Refresh the order before trying again.",
+        },
+        { status: 503 }
+      );
+    }
+
+    if (!transition.ok) {
+      const status =
+        transition.code === "ORDER_NOT_FOUND" ? 404 :
+        transition.code === "INVALID_ADMIN_REQUEST" ? 400 :
+        409;
+
+      const messages: Record<string, string> = {
+        ORDER_CHANGED:
+          "This order or receipt changed. Refresh and review the current receipt before trying again.",
+        ORDER_CLOSED: "This order is already closed.",
+        ORDER_STATE_CONFLICT:
+          "This order requires manual review.",
+        INVALID_TRANSITION:
+          "This order can no longer accept that action.",
+        INVALID_ADMIN_REQUEST: "Invalid order action.",
+      };
+
+      return NextResponse.json(
+        {
+          success: false,
+          code: transition.code,
+          error:
+            messages[transition.code] ??
+            "This order could not be updated.",
+        },
+        { status }
       );
     }
 
     return NextResponse.json({
       success: true,
-      orderId,
-      orderNumber: order.order_number,
-      paymentStatus: newPaymentStatus,
-      orderStatus: newOrderStatus,
+      code: transition.code,
+      orderId: transition.orderId,
+      orderNumber: transition.orderNumber,
+      paymentStatus: transition.paymentStatus,
+      orderStatus: transition.orderStatus,
       message: "Order updated successfully.",
     });
   } catch {

@@ -3,16 +3,22 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import CatalogNav from "../CatalogNav";
 import { supabase } from "@/lib/supabase";
 
 type Category = {
   id: string;
   name: string;
+  is_active: boolean;
 };
+
+type ProductType = Category & { category_id: string };
 
 type Product = {
   id: string;
   category_id: string | null;
+  product_type_id: string | null;
   name: string;
   slug: string;
   sku: string | null;
@@ -29,6 +35,7 @@ const emptyForm = {
   name: "",
   slug: "",
   category_id: "",
+  product_type_id: "",
   sku: "",
   description: "",
   price: "",
@@ -78,6 +85,7 @@ export default function ProductsPage() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [productTypes, setProductTypes] = useState<ProductType[]>([]);
   const [form, setForm] = useState(emptyForm);
 
   const [loading, setLoading] = useState(true);
@@ -92,20 +100,23 @@ export default function ProductsPage() {
   async function loadData() {
     setError("");
 
-    const [productResult, categoryResult] = await Promise.all([
+    const [productResult, categoryResult, typeResult] = await Promise.all([
       supabase
         .from("products")
         .select(
-          "id, category_id, name, slug, sku, description, image_url, price, compare_at_price, stock_quantity, track_stock, is_active"
+          "id, category_id, product_type_id, name, slug, sku, description, image_url, price, compare_at_price, stock_quantity, track_stock, is_active"
         )
         .order("created_at", { ascending: false }),
 
       supabase
         .from("categories")
-        .select("id, name")
-        .eq("is_active", true)
+        .select("id, name, is_active")
         .order("sort_order", { ascending: true }),
+      supabase.from("product_types").select("id, category_id, name, is_active").order("sort_order").order("name"),
     ]);
+
+    if (typeResult.error) { setError(typeResult.error.message); }
+    else { setProductTypes(typeResult.data ?? []); }
 
     if (productResult.error) {
       setError(productResult.error.message);
@@ -170,6 +181,7 @@ export default function ProductsPage() {
       name: product.name,
       slug: product.slug,
       category_id: product.category_id ?? "",
+      product_type_id: product.product_type_id ?? "",
       sku: product.sku ?? "",
       description: product.description ?? "",
       price: String(product.price),
@@ -241,6 +253,14 @@ export default function ProductsPage() {
       return;
     }
 
+    const selectedType = productTypes.find((type) => type.id === form.product_type_id);
+    if ((form.is_active && (!form.category_id || !form.product_type_id)) ||
+        (form.product_type_id && (!selectedType || selectedType.category_id !== form.category_id))) {
+      setError("Choose a Product Type belonging to the selected Game. Active products require both.");
+      setSaving(false);
+      return;
+    }
+
     // Remember the current image before changing the product.
     // It will only be deleted after the replacement URL is saved successfully.
     let previousImageUrl: string | null = null;
@@ -269,6 +289,7 @@ export default function ProductsPage() {
       name: cleanName,
       slug: cleanSlug,
       category_id: form.category_id || null,
+      product_type_id: form.product_type_id || null,
       sku: form.sku.trim() || null,
       description: form.description.trim() || null,
       price,
@@ -410,6 +431,7 @@ export default function ProductsPage() {
           Back to dashboard
         </a>
       </header>
+      <CatalogNav />
 
       <section className="mx-auto max-w-7xl px-6 py-10 md:px-10">
         <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#C6F36B]">
@@ -443,6 +465,7 @@ export default function ProductsPage() {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <div className="flex h-36 w-36 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-[#171717]">
                   {imagePreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- Product previews support local object URLs.
                     <img
                       src={imagePreview}
                       alt="Product preview"
@@ -532,22 +555,33 @@ export default function ProductsPage() {
 
               <div>
                 <label className="mb-2 block text-sm font-bold">
-                  Category
+                  Game
                 </label>
                 <select
+                  aria-label="Game"
+                  required={form.is_active}
                   value={form.category_id}
                   onChange={(e) =>
-                    updateField("category_id", e.target.value)
+                    setForm((previous) => ({ ...previous, category_id: e.target.value, product_type_id: "" }))
                   }
                   className="w-full rounded-xl border border-white/10 bg-[#171717] px-4 py-3 text-sm outline-none focus:border-[#C6F36B]"
                 >
-                  <option value="">No category</option>
+                  <option value="">Choose a game</option>
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>
-                      {category.name}
+                      {category.name}{!category.is_active ? " (Hidden)" : ""}
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label htmlFor="product-type" className="mb-2 block text-sm font-bold">Product Type {form.is_active ? "*" : "(optional for inactive products)"}</label>
+                <select id="product-type" required={form.is_active} disabled={!form.category_id} value={form.product_type_id} onChange={(e) => updateField("product_type_id", e.target.value)} className="w-full rounded-xl border border-white/10 bg-[#171717] px-4 py-3 text-sm outline-none focus:border-[#C6F36B]">
+                  <option value="">Choose a Product Type</option>
+                  {productTypes.filter((type) => type.category_id === form.category_id).map((type) => <option key={type.id} value={type.id}>{type.name}{!type.is_active ? " (Hidden)" : ""}</option>)}
+                </select>
+                <p className="mt-2 text-xs text-white/40">Hidden games and types stay editable, but their products are hidden from customers. <a className="underline" href="/admin/product-types">Manage Product Types</a></p>
               </div>
 
               <div>
@@ -723,7 +757,7 @@ export default function ProductsPage() {
                 <thead>
                   <tr className="border-b border-white/10 text-xs uppercase tracking-wider text-white/40">
                     <th className="pb-4">Product</th>
-                    <th className="pb-4">Category</th>
+                    <th className="pb-4">Game / Product Type</th>
                     <th className="pb-4">SKU</th>
                     <th className="pb-4">Price</th>
                     <th className="pb-4">Stock</th>
@@ -747,7 +781,10 @@ export default function ProductsPage() {
                           <div className="flex items-center gap-3">
                             <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-[#171717]">
                               {product.image_url ? (
-                                <img
+                                <Image
+                                  width={48}
+                                  height={48}
+                                  unoptimized
                                   src={product.image_url}
                                   alt={product.name}
                                   className="h-full w-full object-cover"
@@ -763,6 +800,7 @@ export default function ProductsPage() {
                         </td>
                         <td className="py-5 text-white/50">
                           {category?.name ?? "—"}
+                          <span className="mt-1 block text-xs">{productTypes.find((type) => type.id === product.product_type_id)?.name ?? "Untyped"}</span>
                         </td>
                         <td className="py-5 text-white/50">
                           {product.sku || "—"}

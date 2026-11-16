@@ -1,10 +1,12 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "../CartContext";
 import { supabase } from "@/lib/supabase";
+import StoreHeader from "../StoreHeader";
+import StoreBrand from "../StoreBrand";
 
 type PaymentSettings = {
   bank_transfer_enabled: boolean;
@@ -40,6 +42,7 @@ export default function CheckoutPage() {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptError, setReceiptError] = useState("");
   const [receiptPreview, setReceiptPreview] = useState("");
+  const receiptPreviewRef = useRef("");
 
   const [paymentSettings, setPaymentSettings] =
     useState<PaymentSettings | null>(null);
@@ -52,6 +55,8 @@ export default function CheckoutPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [receiptDeadline, setReceiptDeadline] =
+    useState<string | null>(null);
 
   // Load payment settings from Supabase.
   useEffect(() => {
@@ -98,18 +103,10 @@ export default function CheckoutPage() {
     }
   }
 
-  // Generate receipt image preview.
-  useEffect(() => {
-    if (!receiptFile || !receiptFile.type.startsWith("image/")) {
-      setReceiptPreview("");
-      return;
-    }
-
-    const previewUrl = URL.createObjectURL(receiptFile);
-    setReceiptPreview(previewUrl);
-
-    return () => URL.revokeObjectURL(previewUrl);
-  }, [receiptFile]);
+  // Revoke the active local preview when checkout unmounts.
+  useEffect(() => () => {
+    if (receiptPreviewRef.current) URL.revokeObjectURL(receiptPreviewRef.current);
+  }, []);
 
   function handleContinue() {
     setFormError("");
@@ -165,6 +162,9 @@ export default function CheckoutPage() {
     setReceiptError("");
     setSubmitError("");
 
+    if (receiptPreviewRef.current) URL.revokeObjectURL(receiptPreviewRef.current);
+    receiptPreviewRef.current = "";
+    setReceiptPreview("");
     const file = event.target.files?.[0];
 
     if (!file) {
@@ -196,6 +196,11 @@ export default function CheckoutPage() {
     }
 
     setReceiptFile(file);
+    if (file.type.startsWith("image/")) {
+      const previewUrl = URL.createObjectURL(file);
+      receiptPreviewRef.current = previewUrl;
+      setReceiptPreview(previewUrl);
+    }
   }
 
   // Reuse the same order key when retrying the same checkout.
@@ -250,6 +255,17 @@ export default function CheckoutPage() {
     );
 
     return newSession.idempotencyKey;
+  }
+
+  function completeCheckout(number: string) {
+    setOrderNumber(number);
+    setIsSuccess(true);
+
+    sessionStorage.removeItem("ruang-checkout-session");
+    sessionStorage.removeItem("ruang-checkout-details");
+
+    clearCart();
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   // Create the order, then upload its payment receipt.
@@ -339,6 +355,48 @@ export default function CheckoutPage() {
         throw new Error("Invalid order response. Please try again.");
       }
 
+      setOrderNumber(orderData.orderNumber);
+      setReceiptDeadline(
+        typeof orderData.receiptDeadline === "string"
+          ? orderData.receiptDeadline
+          : null
+      );
+
+      // A closed state always takes precedence over receipt recovery.
+      if (
+        orderData.orderClosed === true ||
+        orderData.orderStatus === "cancelled" ||
+        orderData.orderStatus === "completed"
+      ) {
+        throw new Error(
+          orderData.stateCode === "ORDER_EXPIRED"
+            ? `Order ${orderData.orderNumber} expired before its first receipt was confirmed.`
+            : `Order ${orderData.orderNumber} is already closed.`
+        );
+      }
+
+      // Recover a previous successful submission from actual order state.
+      if (
+        (
+          orderData.paymentStatus === "submitted" ||
+          orderData.paymentStatus === "verified"
+        ) &&
+        orderData.hasReceipt === true
+      ) {
+        completeCheckout(orderData.orderNumber);
+        return;
+      }
+
+      // Reusing a key does not imply that a receipt was submitted.
+      if (
+        orderData.paymentStatus !== "pending" ||
+        orderData.hasReceipt === true
+      ) {
+        throw new Error(
+          `Order ${orderData.orderNumber} requires manual review. Please contact Ruang Digital.`
+        );
+      }
+
       // Step 2: Upload the receipt to the private storage bucket.
       const uploadData = new FormData();
 
@@ -356,22 +414,54 @@ export default function CheckoutPage() {
       const receiptResult = await receiptResponse.json();
 
       if (!receiptResponse.ok || !receiptResult.success) {
+        const messages: Record<string, string> = {
+          ORDER_EXPIRED:
+            `Order ${orderData.orderNumber} passed its 30-minute receipt deadline.`,
+          ORDER_CLOSED:
+            `Order ${orderData.orderNumber} is already closed.`,
+          ORDER_CLOSED_RECEIPT_ALREADY_ATTACHED:
+            `The receipt is attached to order ${orderData.orderNumber}, but the order is already closed. Contact Ruang Digital.`,
+          ORDER_CHANGED:
+            "The order changed while the receipt was uploading. Submit again using this same checkout session.",
+          FINALIZATION_UNKNOWN:
+            "The receipt may have been received, but confirmation was interrupted. Submit again using this same checkout session.",
+          UPLOAD_OUTCOME_UNKNOWN:
+            "The upload result is uncertain. Submit again using this same checkout session.",
+          RECEIPT_TIME_UNKNOWN:
+            `Order ${orderData.orderNumber} requires manual review. Contact Ruang Digital.`,
+        };
+
         throw new Error(
-          receiptResult.error ||
+          messages[receiptResult.code] ||
+            receiptResult.error ||
             "Your order was created, but the receipt upload failed. Please try again."
         );
       }
 
-      // Both steps succeeded.
-      setOrderNumber(orderData.orderNumber);
-      setIsSuccess(true);
+      if (
+        receiptResult.orderClosed === true ||
+        receiptResult.orderStatus === "cancelled" ||
+        receiptResult.orderStatus === "completed"
+      ) {
+        throw new Error(
+          `Order ${orderData.orderNumber} is already closed.`
+        );
+      }
 
-      sessionStorage.removeItem("ruang-checkout-session");
-      sessionStorage.removeItem("ruang-checkout-details");
+      if (
+        receiptResult.code !== "ATTACHED" &&
+        receiptResult.code !== "ALREADY_ATTACHED"
+      ) {
+        throw new Error(
+          "The receipt result could not be confirmed. Submit again using the same checkout session."
+        );
+      }
 
-      clearCart();
-
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      completeCheckout(
+        typeof receiptResult.orderNumber === "string"
+          ? receiptResult.orderNumber
+          : orderData.orderNumber
+      );
     } catch (error) {
       setSubmitError(
         error instanceof Error
@@ -385,8 +475,9 @@ export default function CheckoutPage() {
 
   if (!isLoaded) {
     return (
-      <main className="min-h-screen bg-[#171717] p-8 text-[#F2F0E9]">
-        Loading checkout...
+      <main className="storefront store-checkout">
+        <StoreHeader variant="checkout" />
+        <p className="store-container store-page-content">Loading checkout...</p>
       </main>
     );
   }
@@ -394,8 +485,8 @@ export default function CheckoutPage() {
   // Successful order confirmation.
   if (isSuccess) {
     return (
-      <main className="min-h-screen bg-[#171717] px-5 py-16 text-[#F2F0E9]">
-        <div className="mx-auto max-w-2xl rounded-2xl border border-[#C6F36B]/20 bg-[#262626] p-8 text-center">
+      <main className="storefront store-checkout">
+        <div className="store-confirmation mx-auto max-w-2xl rounded-2xl border border-[#C6F36B]/20 bg-[#191A1F] p-8 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#C6F36B]/10 text-3xl text-[#C6F36B]">
             ✓
           </div>
@@ -414,7 +505,7 @@ export default function CheckoutPage() {
             through WhatsApp.
           </p>
 
-          <div className="mt-8 rounded-xl border border-white/10 bg-[#171717] p-5">
+          <div className="mt-8 rounded-xl border border-white/10 bg-[#101114] p-5">
             <p className="text-xs text-white/40">
               Your order number
             </p>
@@ -437,8 +528,9 @@ export default function CheckoutPage() {
 
   if (cart.length === 0) {
     return (
-      <main className="min-h-screen bg-[#171717] px-5 py-16 text-[#F2F0E9]">
-        <div className="mx-auto max-w-3xl">
+      <main className="storefront store-checkout">
+        <div className="store-container store-page-content">
+          <StoreBrand />
           <h1 className="text-3xl font-black">
             Your cart is empty.
           </h1>
@@ -468,19 +560,22 @@ export default function CheckoutPage() {
     !isSubmitting;
 
   return (
-    <main className="min-h-screen bg-[#171717] px-5 py-12 text-[#F2F0E9]">
-      <div className="mx-auto max-w-3xl">
-        <button
-          onClick={() =>
-            step === 2
-              ? setStep(1)
-              : router.push("/cart")
-          }
-          disabled={isSubmitting}
-          className="mb-8 text-sm text-white/50 transition hover:text-[#C6F36B] disabled:opacity-40"
-        >
-          ← {step === 2 ? "Back to customer details" : "Back to cart"}
-        </button>
+    <main className="storefront store-checkout">
+      <StoreHeader variant="checkout" backControl={
+          <button
+            onClick={() =>
+              step === 2
+                ? setStep(1)
+                : router.push("/cart")
+            }
+            disabled={isSubmitting}
+            className="text-sm text-white/50 transition hover:text-[#C6F36B] disabled:opacity-40"
+          >
+            ← {step === 2 ? "Back to customer details" : "Back to cart"}
+          </button>
+      } />
+      <div className="store-container store-page-content">
+
 
         <p className="text-xs font-black uppercase tracking-[0.25em] text-[#C6F36B]">
           Ruang Digital
@@ -514,15 +609,16 @@ export default function CheckoutPage() {
           </div>
         </div>
 
+        <div className="store-checkout-grid">
         {/* ORDER SUMMARY */}
-        <section className="mt-8 rounded-2xl border border-white/10 bg-[#262626] p-6">
+        <section className="store-checkout-summary mt-8 rounded-[22px] border border-white/10 bg-[#1D1E1C] p-5 sm:p-6">
           <h2 className="text-lg font-black">Order summary</h2>
 
           <div className="mt-6 space-y-5">
             {cart.map((item) => (
               <div
                 key={item.cartItemId}
-                className="flex justify-between gap-4 border-b border-white/10 pb-5"
+                className="store-checkout-item flex justify-between gap-4 border-b border-white/10 pb-5"
               >
                 <div>
                   <p className="font-bold">{item.name}</p>
@@ -540,7 +636,7 @@ export default function CheckoutPage() {
                   </p>
                 </div>
 
-                <p className="whitespace-nowrap font-bold">
+                <p className="shrink-0 text-right font-bold">
                   BND {(item.unitPrice * item.quantity).toFixed(2)}
                 </p>
               </div>
@@ -556,21 +652,22 @@ export default function CheckoutPage() {
           </div>
         </section>
 
+        <div className="store-checkout-active">
         {/* CUSTOMER DETAILS */}
         {step === 1 && (
           <>
-            <section className="mt-6 rounded-2xl border border-white/10 bg-[#262626] p-6">
+            <section className="mt-6 rounded-[22px] border border-white/10 bg-[#1D1E1C] p-5 sm:p-6">
               <h2 className="text-lg font-black">
                 Customer details
               </h2>
 
               <div className="mt-6 space-y-5">
                 <div>
-                  <label className="mb-2 block text-sm font-bold">
+                  <label htmlFor="customer-name" className="mb-2 block text-sm font-bold">
                     Name <span className="text-[#C6F36B]">*</span>
                   </label>
 
-                  <input
+                  <input id="customer-name"
                     type="text"
                     value={name}
                     onChange={(e) => {
@@ -579,7 +676,7 @@ export default function CheckoutPage() {
                     }}
                     placeholder="Enter your name"
                     autoComplete="name"
-                    className={`w-full rounded-xl border bg-[#171717] px-4 py-3 text-sm text-white outline-none transition ${
+                    className={`w-full rounded-xl border bg-[#101114] px-4 py-3 text-sm text-white outline-none transition ${
                       nameError
                         ? "border-red-500"
                         : name.trim()
@@ -596,12 +693,12 @@ export default function CheckoutPage() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-bold">
+                  <label htmlFor="customer-whatsapp" className="mb-2 block text-sm font-bold">
                     WhatsApp Number{" "}
                     <span className="text-[#C6F36B]">*</span>
                   </label>
 
-                  <input
+                  <input id="customer-whatsapp"
                     type="tel"
                     value={whatsapp}
                     onChange={(e) => {
@@ -610,7 +707,7 @@ export default function CheckoutPage() {
                     }}
                     placeholder="e.g. +673 8123456"
                     autoComplete="tel"
-                    className={`w-full rounded-xl border bg-[#171717] px-4 py-3 text-sm text-white outline-none transition ${
+                    className={`w-full rounded-xl border bg-[#101114] px-4 py-3 text-sm text-white outline-none transition ${
                       whatsappError
                         ? "border-red-500"
                         : whatsapp.replace(/\D/g, "").length >= 7 &&
@@ -628,14 +725,14 @@ export default function CheckoutPage() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-bold">
+                  <label htmlFor="customer-email" className="mb-2 block text-sm font-bold">
                     Email Address{" "}
                     <span className="text-xs font-normal text-white/40">
                       (Optional)
                     </span>
                   </label>
 
-                  <input
+                  <input id="customer-email"
                     type="email"
                     value={email}
                     onChange={(e) => {
@@ -644,7 +741,7 @@ export default function CheckoutPage() {
                     }}
                     placeholder="Enter your email address"
                     autoComplete="email"
-                    className={`w-full rounded-xl border bg-[#171717] px-4 py-3 text-sm text-white outline-none transition ${
+                    className={`w-full rounded-xl border bg-[#101114] px-4 py-3 text-sm text-white outline-none transition ${
                       emailError
                         ? "border-red-500"
                         : email.trim() &&
@@ -682,7 +779,7 @@ export default function CheckoutPage() {
         {/* PAYMENT */}
         {step === 2 && (
           <>
-            <section className="mt-6 rounded-2xl border border-white/10 bg-[#262626] p-6">
+            <section className="mt-6 rounded-[22px] border border-white/10 bg-[#1D1E1C] p-5 sm:p-6">
               <h2 className="text-lg font-black">
                 Bank transfer
               </h2>
@@ -766,10 +863,11 @@ export default function CheckoutPage() {
                         Scan to pay
                       </p>
 
+                      {/* eslint-disable-next-line @next/next/no-img-element -- Deliver the original payment QR image without transformation. */}
                       <img
                         src={paymentSettings.payment_qr_url}
                         alt="Payment QR code"
-                        className="max-h-64 rounded-xl bg-white p-3 object-contain"
+                        className="max-h-64 max-w-full rounded-xl bg-white p-3 object-contain"
                       />
                     </div>
                   )}
@@ -802,7 +900,7 @@ export default function CheckoutPage() {
 
             {/* RECEIPT UPLOAD */}
             {paymentSettings?.bank_transfer_enabled && (
-              <section className="mt-6 rounded-2xl border border-white/10 bg-[#262626] p-6">
+              <section className="mt-6 rounded-[22px] border border-white/10 bg-[#1D1E1C] p-5 sm:p-6">
                 <h2 className="text-lg font-black">
                   Payment receipt
                 </h2>
@@ -812,7 +910,7 @@ export default function CheckoutPage() {
                   receipt here.
                 </p>
 
-                <label className="mt-6 block cursor-pointer rounded-xl border border-dashed border-white/20 bg-[#171717] p-6 text-center transition hover:border-[#C6F36B]">
+                <label className="store-receipt-picker mt-6 block cursor-pointer rounded-xl border border-dashed border-white/20 bg-[#101114] p-6 text-center transition hover:border-[#C6F36B]">
                   <span className="text-sm font-bold text-[#C6F36B]">
                     Choose receipt file
                   </span>
@@ -841,6 +939,7 @@ export default function CheckoutPage() {
                     </p>
 
                     {receiptPreview && (
+                      // eslint-disable-next-line @next/next/no-img-element -- Receipt previews use a local object URL.
                       <img
                         src={receiptPreview}
                         alt="Payment receipt preview"
@@ -856,6 +955,22 @@ export default function CheckoutPage() {
                   </p>
                 )}
               </section>
+            )}
+
+            {receiptDeadline && (
+              <div className="mt-6 rounded-xl border border-yellow-400/20 bg-yellow-400/10 p-4">
+                <p className="text-sm font-bold text-yellow-300">
+                  First receipt deadline
+                </p>
+                <p className="mt-2 text-xs leading-5 text-yellow-200/80">
+                  {new Date(receiptDeadline).toLocaleString("en-BN", {
+                    timeZone: "Asia/Brunei",
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                  . The server decides whether a receipt arrived in time.
+                </p>
+              </div>
             )}
 
             {submitError && (
@@ -888,6 +1003,8 @@ export default function CheckoutPage() {
           </>
         )}
 
+        </div>
+        </div>
         <p className="mt-6 text-xs leading-6 text-white/40">
           Your details are used to contact you about your order.
         </p>

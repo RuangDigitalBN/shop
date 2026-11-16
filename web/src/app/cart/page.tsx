@@ -1,8 +1,10 @@
 
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "../CartContext";
+import StoreHeader from "../StoreHeader";
 
 export default function CartPage() {
   const {
@@ -17,21 +19,18 @@ export default function CartPage() {
 
   if (!isLoaded) {
     return (
-      <main className="min-h-screen bg-[#171717] px-5 py-16 text-[#F2F0E9]">
+        <main className="storefront store-cart">
+      <StoreHeader variant="interior" />
         <p className="text-white/50">Loading your cart...</p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#171717] px-5 py-12 text-[#F2F0E9] sm:px-8">
-      <div className="mx-auto max-w-5xl">
-        <Link
-          href="/"
-          className="text-sm font-bold text-[#C6F36B] transition hover:text-white"
-        >
-          ← Continue shopping
-        </Link>
+    <main className="storefront store-cart">
+      <StoreHeader variant="interior" />
+      <div className="store-container store-page-content">
+
 
         <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -58,13 +57,13 @@ export default function CartPage() {
         </div>
 
         {cart.length === 0 ? (
-          <div className="mt-10 rounded-2xl border border-white/10 bg-[#202020] px-6 py-16 text-center">
+          <div className="mt-10 rounded-2xl border border-white/10 bg-[#191A1F] px-6 py-16 text-center">
             <div className="text-5xl">🛒</div>
             <h2 className="mt-5 text-2xl font-black">
               Your cart is empty
             </h2>
             <p className="mt-2 text-sm text-white/50">
-              Looks like you haven't added anything yet.
+              Looks like you haven&apos;t added anything yet.
             </p>
             <Link
               href="/"
@@ -74,16 +73,19 @@ export default function CartPage() {
             </Link>
           </div>
         ) : (
-          <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_320px]">
-            <div className="space-y-4">
+          <div className="mt-8 grid items-start gap-5 lg:grid-cols-[1fr_320px] lg:gap-7">
+              <div className="space-y-3">
               {cart.map((item) => (
                 <div
                   key={item.cartItemId}
-                  className="flex flex-col gap-5 rounded-2xl border border-white/10 bg-[#202020] p-4 sm:flex-row sm:items-center sm:p-5"
+                  className="store-cart-item flex flex-col gap-5 rounded-2xl border border-white/10 bg-[#191A1F] p-4 sm:flex-row sm:items-center sm:p-5"
                 >
-                  <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-[#303030]">
+                  <div className="store-cart-thumb h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-[#303030]">
                     {item.imageUrl ? (
-                      <img
+                      <Image
+                        width={96}
+                        height={96}
+                        unoptimized
                         src={item.imageUrl}
                         alt={item.name}
                         className="h-full w-full object-cover"
@@ -110,7 +112,7 @@ export default function CartPage() {
                     <div className="mt-4 flex flex-wrap items-center gap-3">
                       <div className="flex items-center overflow-hidden rounded-lg border border-white/10">
                         <button
-                          type="button"
+                          type="button" aria-label="Decrease quantity"
                           onClick={() =>
                             updateQuantity(item.cartItemId, item.quantity - 1)
                           }
@@ -125,7 +127,7 @@ export default function CartPage() {
                         </span>
 
                         <button
-                          type="button"
+                          type="button" aria-label="Increase quantity"
                           onClick={() =>
                             updateQuantity(item.cartItemId, item.quantity + 1)
                           }
@@ -159,7 +161,7 @@ export default function CartPage() {
               ))}
             </div>
 
-            <aside className="h-fit rounded-2xl border border-white/10 bg-[#202020] p-6">
+            <aside className="store-cart-summary h-fit rounded-2xl border border-white/10 bg-[#191A1F] p-6">
               <h2 className="text-xl font-black">Order Summary</h2>
 
               <div className="mt-6 flex justify-between text-sm text-white/50">

@@ -3,8 +3,10 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useCart } from "../../CartContext";
+import StoreHeader from "../../StoreHeader";
 
 type Product = {
   id: string;
@@ -17,12 +19,13 @@ type Product = {
   track_stock: boolean | null;
   stock_quantity: number | null;
   category_id: string | null;
+  product_type_id: string | null;
 };
 
 export default function ProductPage() {
-  const { addItem, itemCount } = useCart();
+  const { addItem } = useCart();
 
-  const [slug, setSlug] = useState("");
+  const { slug } = useParams<{ slug: string }>();
   const [product, setProduct] = useState<Product | null>(null);
   const [categoryName, setCategoryName] = useState("");
   const [loading, setLoading] = useState(true);
@@ -34,21 +37,18 @@ export default function ProductPage() {
   const [cartError, setCartError] = useState("");
 
   useEffect(() => {
-    const currentSlug = window.location.pathname.split("/").pop() ?? "";
-    setSlug(currentSlug);
-  }, []);
-
-  useEffect(() => {
     async function loadProduct() {
       if (!slug) return;
 
       setLoading(true);
+      setProduct(null);
+      setCategoryName("");
       setError("");
 
       const { data, error } = await supabase
         .from("products")
         .select(
-          "id, name, slug, description, image_url, price, compare_at_price, track_stock, stock_quantity, category_id"
+          "id, name, slug, description, image_url, price, compare_at_price, track_stock, stock_quantity, category_id, product_type_id"
         )
         .eq("slug", slug)
         .eq("is_active", true)
@@ -66,16 +66,26 @@ export default function ProductPage() {
         return;
       }
 
-      setProduct(data);
-
-      if (data.category_id) {
-        const { data: category } = await supabase
+      if (data.category_id && data.product_type_id) {
+        const [{ data: category, error: categoryError }, { data: productType, error: typeError }] = await Promise.all([supabase
           .from("categories")
           .select("name")
           .eq("id", data.category_id)
-          .maybeSingle();
-
-        setCategoryName(category?.name ?? "");
+          .eq("is_active", true)
+          .maybeSingle(),
+          supabase.from("product_types").select("id").eq("id", data.product_type_id).eq("category_id", data.category_id).eq("is_active", true).maybeSingle(),
+        ]);
+        if (categoryError || typeError || !category || !productType) {
+          setProduct(null);
+          setError("This product is unavailable.");
+          setLoading(false);
+          return;
+        }
+        setProduct(data);
+        setCategoryName(category.name);
+      } else {
+        setProduct(null);
+        setError("This product is unavailable.");
       }
 
       setLoading(false);
@@ -122,23 +132,10 @@ export default function ProductPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#171717] px-5 py-10 text-[#F2F0E9] sm:py-16">
-      <div className="mx-auto max-w-6xl">
-        <div className="flex items-center justify-between gap-4">
-          <Link
-            href="/"
-            className="text-xs font-bold uppercase tracking-widest text-[#C6F36B] hover:text-white"
-          >
-            ← Back to store
-          </Link>
+    <main className="storefront store-product">
+      <StoreHeader variant="interior" />
+      <div className="store-container store-page-content">
 
-          <Link
-            href="/cart"
-            className="rounded-xl border border-white/10 px-4 py-2 text-xs font-bold transition hover:border-[#C6F36B] hover:text-[#C6F36B]"
-          >
-            Cart ({itemCount})
-          </Link>
-        </div>
 
         {loading ? (
           <p className="py-20 text-center text-white/50">
@@ -154,23 +151,23 @@ export default function ProductPage() {
             </p>
           </div>
         ) : (
-          <div className="mt-10 grid gap-10 md:grid-cols-2 md:gap-14">
-            <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#202020]">
+          <div className="mt-7 grid items-start gap-5 md:grid-cols-[1fr_0.92fr] md:gap-8">
+            <div className="relative overflow-hidden rounded-[22px] border border-white/10 bg-[#191A1F] shadow-[0_20px_70px_rgba(0,0,0,0.2)]">
               {product.image_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={product.image_url}
                   alt={product.name}
-                  className="aspect-square w-full object-cover"
+                  className="aspect-[4/3] w-full object-cover md:aspect-square"
                 />
               ) : (
-                <div className="flex aspect-square items-center justify-center text-6xl font-black italic text-white/15">
+                <div className="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-[#7137B8]/15 via-[#191A1F] to-[#C6F36B]/10 text-6xl font-black italic text-white/15 md:aspect-square">
                   {product.name.slice(0, 3).toUpperCase()}
                 </div>
               )}
             </div>
 
-            <div className="flex flex-col justify-center">
+            <div className="rounded-[22px] border border-white/10 bg-[#191A1F] p-5 sm:p-6">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-[#C6F36B]">
                 {categoryName || "Digital product"}
               </p>
@@ -217,11 +214,11 @@ export default function ProductPage() {
 
               <form onSubmit={handleAddToCart} className="mt-8 space-y-5">
                 <div>
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-white/60">
+                  <label htmlFor="player-id" className="mb-2 block text-xs font-bold uppercase tracking-wider text-white/60">
                     Player ID
                   </label>
 
-                  <input
+                  <input id="player-id"
                     type="text"
                     required
                     value={playerId}
@@ -232,11 +229,11 @@ export default function ProductPage() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-white/60">
+                  <label htmlFor="server-id" className="mb-2 block text-xs font-bold uppercase tracking-wider text-white/60">
                     Server ID (Zone ID)
                   </label>
 
-                  <input
+                  <input id="server-id"
                     type="text"
                     required
                     value={zoneId}
@@ -247,13 +244,12 @@ export default function ProductPage() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-white/60">
-                    Quantity
-                  </label>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-white/60">Quantity</p>
 
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
+                      aria-label="Decrease quantity"
                       onClick={() =>
                         setQuantity((current) => Math.max(1, current - 1))
                       }
@@ -267,7 +263,7 @@ export default function ProductPage() {
                     </span>
 
                     <button
-                      type="button"
+                      type="button" aria-label="Increase quantity"
                       onClick={() =>
                         setQuantity((current) =>
                           product.track_stock

@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import CatalogNav from "../CatalogNav";
 import { supabase } from "@/lib/supabase";
 
 type Category = {
@@ -167,13 +168,14 @@ export default function CategoriesPage() {
           Back to dashboard
         </a>
       </header>
+      <CatalogNav />
 
       <section className="mx-auto max-w-7xl px-6 py-10 md:px-10">
         <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#C6F36B]">
           Store management
         </p>
 
-        <h1 className="mt-3 text-4xl font-black">Categories.</h1>
+        <h1 className="mt-3 text-4xl font-black">Games.</h1>
 
         <p className="mt-2 text-sm text-white/50">
           Organise your products by game or category.
@@ -182,13 +184,13 @@ export default function CategoriesPage() {
         <div className="mt-10 grid gap-8 lg:grid-cols-[380px_1fr]">
           <div className="h-fit rounded-2xl border border-white/10 bg-[#262626] p-6">
             <h2 className="text-lg font-bold">
-              {editingId ? "Edit category" : "Add category"}
+              {editingId ? "Edit game" : "Add game"}
             </h2>
 
             <form onSubmit={handleAddCategory} className="mt-6 space-y-5">
               <div>
                 <label className="mb-2 block text-xs font-bold text-white/60">
-                  Category name
+                  Game name
                 </label>
                 <input
                   required
@@ -262,7 +264,7 @@ export default function CategoriesPage() {
                   ? "Saving..."
                   : editingId
                     ? "Save Changes"
-                    : "Add category"}
+                    : "Add game"}
               </button>
 
               {editingId && (
@@ -279,9 +281,9 @@ export default function CategoriesPage() {
 
           <div className="rounded-2xl border border-white/10 bg-[#262626] p-6">
             <div className="flex items-center justify-between gap-4">
-              <h2 className="text-lg font-bold">All categories</h2>
+              <h2 className="text-lg font-bold">All games</h2>
               <span className="text-xs text-white/40">
-                {categories.length} categories
+                {categories.length} games
               </span>
             </div>
 

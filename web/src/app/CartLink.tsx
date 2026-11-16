@@ -1,21 +1,16 @@
-
 "use client";
-
 import Link from "next/link";
 import { useCart } from "./CartContext";
 
-export default function CartLink() {
+export default function CartLink({ variant = "regular" }: { variant?: "compact" | "regular" }) {
   const { itemCount } = useCart();
-
   return (
-    <Link
-      href="/cart"
-      className="relative inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-3 text-[10px] font-black uppercase tracking-wider text-[#F2F0E9] transition hover:border-[#C6F36B] hover:text-[#C6F36B] sm:text-xs"
-    >
-      <span>Cart</span>
-      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#C6F36B] px-1 text-[10px] font-black text-[#171717]">
-        {itemCount}
-      </span>
+    <Link href="/cart" aria-label={`Cart, ${itemCount} ${itemCount === 1 ? "item" : "items"}`} className={`store-cart-link store-cart-${variant}`}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+        <path d="M3 3h2l3 12h10l3-9H6" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="9" cy="20" r="1" /><circle cx="18" cy="20" r="1" />
+      </svg>
+      <span className="store-cart-label">Cart</span><span className="store-cart-count">{itemCount}</span>
     </Link>
   );
 }
