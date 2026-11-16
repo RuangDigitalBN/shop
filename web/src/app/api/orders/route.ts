@@ -1,7 +1,8 @@
 
 import { randomUUID } from "node:crypto";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { notifyNewOrder } from "@/lib/telegram-orders";
 
 type SubmittedItem = {
   productId: string;
@@ -420,6 +421,26 @@ export async function POST(request: Request) {
         },
         { status: 503 }
       );
+    }
+
+    // A successful RPC may itself reuse an order during a concurrent retry.
+    // Only the request whose generated order number was saved may notify.
+    if (createdOrder.order_number === orderNumber) {
+      try {
+        after(() => notifyNewOrder({
+          orderNumber: createdOrder.order_number,
+          customerName,
+          total: subtotal,
+          paymentStatus: createdOrder.payment_status,
+          createdAt: createdOrder.created_at,
+          items: orderItems.map((item) => ({
+            name: item.product_name,
+            quantity: item.quantity,
+          })),
+        }));
+      } catch {
+        console.error("Telegram order notification scheduling failed.");
+      }
     }
 
     return orderResponse(
