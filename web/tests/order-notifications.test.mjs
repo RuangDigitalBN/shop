@@ -128,7 +128,7 @@ test('new order sends once after response; a retry does not send again', async (
   const payload = JSON.parse(init.body);
   assert.equal(init.method, 'POST');
   assert.ok(init.signal instanceof AbortSignal);
-  assert.equal(init.redirect, 'error');
+  assert.equal(init.redirect, 'manual');
   for (const text of [result.orderNumber, 'Test Customer', 'BND 7.00', 'pending',
     '2 x Diamonds', '2026-11-16T01:00:00.000Z', 'Check Admin Orders']) {
     assert.ok(payload.text.includes(text), text);

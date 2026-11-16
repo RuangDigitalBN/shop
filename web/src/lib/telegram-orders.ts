@@ -55,7 +55,7 @@ export async function notifyNewOrder(order: OrderNotification): Promise<void> {
           link_preview_options: { is_disabled: true },
         }),
         signal: AbortSignal.timeout(5_000),
-        redirect: "error",
+        redirect: "manual",
       }
     );
 
