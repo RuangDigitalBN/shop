@@ -175,8 +175,8 @@ body {
 
 /* Reference-led storefront revision. All selectors remain storefront-scoped. */
 .storefront { --store-lime: #baff16; background: #0b0c10; }
-.storefront .store-brand { display: block; width: 185px; height: 64px; overflow: hidden; flex-shrink: 0; }
-.storefront .store-brand img { width: 185px; height: auto; max-width: none; transform: translateY(-13px); }
+.storefront .store-brand { display: flex; align-items: center; width: 185px; height: 64px; overflow: hidden; flex-shrink: 0; }
+.storefront .store-brand img { width: 100%; height: auto; max-width: 100%; }
 .storefront .store-brand-mark { width: 58px; }
 .storefront .store-header { background: #0b0c10f5; }
 .storefront .store-header-inner { min-height: 88px; gap: 32px; padding-block: 0; }
@@ -247,7 +247,7 @@ body {
 @media (max-width: 767px) {
   .storefront .store-header-inner { min-height: 82px; padding: 0 16px; }
   .storefront .store-brand { width: 145px; height: 70px; }
-  .storefront .store-brand img { width: 145px; transform: none; }
+  .storefront .store-brand img { width: 100%; }
   .storefront .store-header-actions { gap: 14px; }
   .storefront .store-header-full .store-header-actions > .store-cart-link { display: none; }
   .storefront .store-search { width: 28px; }
@@ -277,12 +277,12 @@ body {
   .storefront .store-category-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
   .storefront .store-category { min-height: 116px; padding: 16px; gap: 10px; border-radius: 15px; }
   .storefront .store-category h3 { font-size: 14px; }
-  .storefront .store-product-row { grid-template-columns: 44px minmax(0,1fr); padding: 12px; gap: 8px 12px; }
+  .storefront .store-product-row { grid-template-columns: 44px minmax(0,1fr); padding: 12px; gap: 6px 12px; }
   .storefront .store-product-row > div:first-child { width: 44px; height: 44px; }
   .storefront .store-product-info h3 { font-size: 14px; }
-  .storefront .store-product-price { min-width: 0; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+  .storefront .store-product-price { min-width: 0; gap: 8px; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; }
   .storefront .store-product-price p:nth-child(2) { font-size: 15px; }
-  .storefront .store-row-action { padding: 0 12px; font-size: 12px; }
+  .storefront .store-row-action { min-height: 38px; padding: 0 10px; font-size: 12px; }
   .storefront .store-filters { flex-wrap: nowrap; overflow-x: auto; padding-block: 4px 8px; }
   .storefront .store-bottom-nav { display: grid; grid-template-columns: repeat(4,1fr); position: fixed; bottom: 0; left: 0; right: 0; z-index: 40; padding: 10px 12px max(10px,env(safe-area-inset-bottom)); background: #0a0b0ff5; border-top: 1px solid #ffffff10; backdrop-filter: blur(14px); }
   .storefront .store-bottom-nav a { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; color: #eee; }
