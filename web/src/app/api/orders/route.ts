@@ -1,5 +1,6 @@
 
 import { getGameFields, validateGameFields } from "@/lib/game-fields";
+import { getOrderMethod } from "@/lib/whatsapp-order";
 import { randomUUID } from "node:crypto";
 import { after, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -243,7 +244,7 @@ export async function POST(request: Request) {
       await supabaseAdmin
         .from("products")
         .select(
-          "id, name, slug, sku, price, is_active, track_stock, stock_quantity, category_id"
+          "id, name, slug, sku, price, is_active, track_stock, stock_quantity, category_id, metadata"
         )
         .in("id", uniqueProductIds)
         .eq("is_active", true);
@@ -260,6 +261,10 @@ export async function POST(request: Request) {
         "One or more products are no longer available.",
         400
       );
+    }
+
+    if (products.some((product) => getOrderMethod(product.metadata) === "whatsapp")) {
+      return errorResponse("This product must be ordered via WhatsApp. Open its product page to order.", 400);
     }
 
     // Resolve requirements from the product's trusted category, never client labels.

@@ -37,6 +37,7 @@ const body = {
   items: [{ productId, quantity: 2, playerId: 'private-player', zoneId: 'private-zone' }],
 };
 const fields = loadSource('src/lib/game-fields.ts', {});
+const orderMethod = loadSource('src/lib/whatsapp-order.ts', { './game-fields': fields });
 
 function harness(options = {}) {
   const requests = [];
@@ -82,6 +83,7 @@ function harness(options = {}) {
             id: productId, name: 'Diamonds', slug: 'diamonds', sku: 'SKU',
             category_id: 'category-id',
             price: 3.5, is_active: true, track_stock: false,
+            metadata: options.productMetadata,
           }] }).then(resolve, reject);
         },
       };
@@ -109,6 +111,7 @@ function harness(options = {}) {
     '@/lib/supabase-admin': { supabaseAdmin: database },
     '@/lib/telegram-orders': helper,
     '@/lib/game-fields': fields,
+    '@/lib/whatsapp-order': orderMethod,
   }, { console: { error: (...args) => logs.push(args) } });
   return {
     requests, logs, jobs, helper,
@@ -221,6 +224,7 @@ for (const [game, labels, primary, server, keys] of games) {
       '../../CartContext': { useCart: () => ({ addItem() {} }) },
       '../../StoreHeader': { default: () => null },
       '@/lib/game-fields': fields,
+      '@/lib/whatsapp-order': orderMethod,
     });
     const tree = page.default();
     const walk = (node) => !node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(walk) : [node, ...walk(node.props?.children)];
@@ -264,6 +268,22 @@ test('MLBB still requires Server ID; unknown/inactive categories fail closed', a
     assert.equal((await h.post({ ...body, items: [{ productId, quantity: 1, playerId: '1234' }] })).status, 400);
     assert.equal(h.rpcCount, 0);
   }
+});
+
+test('checkout rejects a WhatsApp-only product using its trusted stored setting', async () => {
+  const h = harness({ productMetadata: { order_method: 'whatsapp' } });
+  const response = await h.post();
+  assert.equal(response.status, 400);
+  assert.match(await response.text(), /WhatsApp/);
+  assert.equal(h.rpcCount, 0);
+  assert.equal(h.jobs.length, 0);
+});
+
+test('checkout ignores a client order-method override for a normal product', async () => {
+  const h = harness({ productMetadata: { order_method: 'normal_checkout' } });
+  const response = await h.post({ ...body, items: [{ ...body.items[0], metadata: { order_method: 'whatsapp' } }] });
+  assert.equal(response.status, 200);
+  assert.equal(h.rpcCount, 1);
 });
 
 test('unsafe or malformed account values are rejected; legacy MLBB details still display', () => {

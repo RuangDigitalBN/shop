@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useCart } from "../../CartContext";
 import { getGameFields, validateGameFields } from "@/lib/game-fields";
+import { getOrderMethod, whatsappOrderUrl } from "@/lib/whatsapp-order";
 import StoreHeader from "../../StoreHeader";
 
 type Product = {
@@ -21,6 +22,7 @@ type Product = {
   stock_quantity: number | null;
   category_id: string | null;
   product_type_id: string | null;
+  metadata: unknown;
 };
 
 export default function ProductPage() {
@@ -51,7 +53,7 @@ export default function ProductPage() {
       const { data, error } = await supabase
         .from("products")
         .select(
-          "id, name, slug, description, image_url, price, compare_at_price, track_stock, stock_quantity, category_id, product_type_id"
+          "id, name, slug, description, image_url, price, compare_at_price, track_stock, stock_quantity, category_id, product_type_id, metadata"
         )
         .eq("slug", slug)
         .eq("is_active", true)
@@ -98,6 +100,8 @@ export default function ProductPage() {
   }, [slug]);
 
   const fields = getGameFields(categoryName);
+  const whatsappOrder = getOrderMethod(product?.metadata) === "whatsapp";
+  const validation = validateGameFields(categoryName, { playerId, zoneId });
 
   const soldOut =
     product?.track_stock === true &&
@@ -106,7 +110,7 @@ export default function ProductPage() {
   function handleAddToCart(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!product) return;
+    if (!product || soldOut) return;
 
     setCartMessage("");
     setCartError("");
@@ -114,6 +118,20 @@ export default function ProductPage() {
     const validation = validateGameFields(categoryName, { playerId, zoneId });
     if (!validation.values) {
       setCartError(validation.error!);
+      return;
+    }
+
+    if (whatsappOrder) {
+      const order = whatsappOrderUrl(product, categoryName, validation.values, quantity);
+      if (!order.url) {
+        setCartError(order.error!);
+        return;
+      }
+      window.open(
+        order.url,
+        "_blank",
+        "noopener,noreferrer",
+      );
       return;
     }
 
@@ -307,10 +325,10 @@ export default function ProductPage() {
 
                 <button
                   type="submit"
-                  disabled={soldOut || !fields}
+                  disabled={soldOut || !fields || (whatsappOrder && !validation.values)}
                   className="w-full rounded-xl bg-[#C6F36B] px-6 py-4 text-sm font-black uppercase tracking-wider text-[#171717] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {soldOut ? "Sold Out" : "Add to Cart"}
+                  {soldOut ? "Sold Out" : whatsappOrder ? "Order via WhatsApp" : "Add to Cart"}
                 </button>
               </form>
             </div>

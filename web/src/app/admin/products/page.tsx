@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import CatalogNav from "../CatalogNav";
 import { supabase } from "@/lib/supabase";
+import { getOrderMethod, withOrderMethod, type OrderMethod } from "@/lib/whatsapp-order";
 
 type Category = {
   id: string;
@@ -29,9 +30,11 @@ type Product = {
   stock_quantity: number | null;
   track_stock: boolean;
   is_active: boolean;
+  metadata: unknown;
 };
 
 const emptyForm = {
+  order_method: "normal_checkout" as OrderMethod,
   name: "",
   slug: "",
   category_id: "",
@@ -104,7 +107,7 @@ export default function ProductsPage() {
       supabase
         .from("products")
         .select(
-          "id, category_id, product_type_id, name, slug, sku, description, image_url, price, compare_at_price, stock_quantity, track_stock, is_active"
+          "id, category_id, product_type_id, name, slug, sku, description, image_url, price, compare_at_price, stock_quantity, track_stock, is_active, metadata"
         )
         .order("created_at", { ascending: false }),
 
@@ -178,6 +181,7 @@ export default function ProductsPage() {
     setImagePreview(product.image_url);
 
     setForm({
+      order_method: getOrderMethod(product.metadata),
       name: product.name,
       slug: product.slug,
       category_id: product.category_id ?? "",
@@ -264,28 +268,31 @@ export default function ProductsPage() {
     // Remember the current image before changing the product.
     // It will only be deleted after the replacement URL is saved successfully.
     let previousImageUrl: string | null = null;
+    let previousMetadata: unknown = null;
 
-    if (editingId && imageFile) {
+    if (editingId) {
       const { data: currentProduct, error: currentProductError } =
         await supabase
           .from("products")
-          .select("image_url")
+          .select("image_url, metadata")
           .eq("id", editingId)
           .maybeSingle();
 
-      if (currentProductError) {
+      if (currentProductError || !currentProduct) {
         setError(
-          "Could not check the existing product image: " +
-            currentProductError.message
+          "Could not check the existing product: " +
+            (currentProductError?.message ?? "Product not found.")
         );
         setSaving(false);
         return;
       }
 
       previousImageUrl = currentProduct?.image_url ?? null;
+      previousMetadata = currentProduct.metadata;
     }
 
     const productData = {
+      metadata: withOrderMethod(previousMetadata, form.order_method),
       name: cleanName,
       slug: cleanSlug,
       category_id: form.category_id || null,
@@ -582,6 +589,16 @@ export default function ProductsPage() {
                   {productTypes.filter((type) => type.category_id === form.category_id).map((type) => <option key={type.id} value={type.id}>{type.name}{!type.is_active ? " (Hidden)" : ""}</option>)}
                 </select>
                 <p className="mt-2 text-xs text-white/40">Hidden games and types stay editable, but their products are hidden from customers. <a className="underline" href="/admin/product-types">Manage Product Types</a></p>
+              </div>
+
+              <div>
+                <label htmlFor="order-method" className="mb-2 block text-sm font-bold">Order method</label>
+                <select id="order-method" value={form.order_method}
+                  onChange={(e) => updateField("order_method", e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-[#171717] px-4 py-3 text-sm outline-none focus:border-[#C6F36B]">
+                  <option value="normal_checkout">Normal Checkout</option>
+                  <option value="whatsapp">WhatsApp Order</option>
+                </select>
               </div>
 
               <div>
