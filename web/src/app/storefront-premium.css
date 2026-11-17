@@ -107,3 +107,7 @@
   .store-game .store-game-intro { min-height: 300px; padding: 24px; border-radius: 18px; }
   .store-game .store-game-guidance { padding-bottom: 28px; }
 }
+
+/* Slim visual action inside the existing full-row product link. */
+:is(.store-home, .store-game) .store-row-action { min-height: 32px; padding-inline: 12px; border-radius: 8px; font-size: 12px; gap: 5px; }
+:is(.store-home, .store-game) .store-row-action svg { width: 15px; height: 15px; }

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useCart } from "../CartContext";
 import { accountEntries } from "@/lib/game-fields";
 import StoreHeader from "../StoreHeader";
+import StoreIcon from "../StoreIcons";
 
 export default function CartPage() {
   const {
@@ -22,7 +23,7 @@ export default function CartPage() {
     return (
         <main className="storefront store-cart">
       <StoreHeader variant="interior" />
-        <p className="text-white/50">Loading your cart...</p>
+        <p className="store-container store-page-content" role="status">Loading your cart...</p>
       </main>
     );
   }
@@ -33,7 +34,7 @@ export default function CartPage() {
       <div className="store-container store-page-content">
 
 
-        <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
+        <div className="commerce-page-heading flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.25em] text-[#C6F36B]">
               Your selection
@@ -50,7 +51,7 @@ export default function CartPage() {
             <button
               type="button"
               onClick={clearCart}
-              className="text-sm font-bold text-red-400 transition hover:text-red-300"
+              className="commerce-clear text-sm font-bold text-red-400 transition hover:text-red-300"
             >
               Clear cart
             </button>
@@ -59,7 +60,7 @@ export default function CartPage() {
 
         {cart.length === 0 ? (
           <div className="mt-10 rounded-2xl border border-white/10 bg-[#191A1F] px-6 py-16 text-center">
-            <div className="text-5xl">🛒</div>
+            <div className="commerce-empty-icon"><StoreIcon name="cart" size={36} /></div>
             <h2 className="mt-5 text-2xl font-black">
               Your cart is empty
             </h2>
@@ -74,8 +75,8 @@ export default function CartPage() {
             </Link>
           </div>
         ) : (
-          <div className="mt-8 grid items-start gap-5 lg:grid-cols-[1fr_320px] lg:gap-7">
-              <div className="space-y-3">
+          <div className="commerce-cart-grid">
+              <div className="commerce-cart-items">
               {cart.map((item) => (
                 <div
                   key={item.cartItemId}
@@ -98,19 +99,20 @@ export default function CartPage() {
                     )}
                   </div>
 
-                  <div className="min-w-0 flex-1">
+                  <div className="commerce-cart-details min-w-0 flex-1">
+                    {item.categoryName && <p className="commerce-item-category">{item.categoryName}</p>}
                     <h2 className="font-black">{item.name}</h2>
 
-                    <p className="mt-1 text-sm text-[#C6F36B]">
+                    <p className="commerce-unit-price mt-1 text-sm text-[#C6F36B]">
                       BND {item.unitPrice.toFixed(2)} each
                     </p>
 
-                    <div className="mt-3 space-y-1 text-xs text-white/50">
+                    <div className="commerce-account-details mt-3 space-y-1 text-xs text-white/50">
                       {accountEntries(item).map((entry) => <p key={entry.label}>{entry.label}: {entry.value}</p>)}
                     </div>
 
-                    <div className="mt-4 flex flex-wrap items-center gap-3">
-                      <div className="flex items-center overflow-hidden rounded-lg border border-white/10">
+                    <div className="commerce-item-controls mt-4 flex flex-wrap items-center gap-3">
+                      <div className="commerce-quantity flex items-center overflow-hidden rounded-lg border border-white/10">
                         <button
                           type="button" aria-label="Decrease quantity"
                           onClick={() =>
@@ -144,14 +146,14 @@ export default function CartPage() {
                       <button
                         type="button"
                         onClick={() => removeItem(item.cartItemId)}
-                        className="text-xs font-bold text-red-400 transition hover:text-red-300"
+                        className="commerce-remove text-xs font-bold text-red-400 transition hover:text-red-300"
                       >
                         Remove
                       </button>
                     </div>
                   </div>
 
-                  <div className="text-left sm:text-right">
+                  <div className="commerce-line-total text-left sm:text-right">
                     <p className="text-xs text-white/40">Item total</p>
                     <p className="mt-1 text-lg font-black">
                       BND {(item.unitPrice * item.quantity).toFixed(2)}
@@ -162,7 +164,8 @@ export default function CartPage() {
             </div>
 
             <aside className="store-cart-summary h-fit rounded-2xl border border-white/10 bg-[#191A1F] p-6">
-              <h2 className="text-xl font-black">Order Summary</h2>
+              <p className="commerce-kicker">Ready when you are</p>
+              <h2 className="text-xl font-black">Order summary</h2>
 
               <div className="mt-6 flex justify-between text-sm text-white/50">
                 <span>Total items</span>
@@ -176,7 +179,7 @@ export default function CartPage() {
 
               <div className="my-5 border-t border-white/10" />
 
-              <div className="flex justify-between gap-3">
+              <div className="commerce-total flex justify-between gap-3">
                 <span className="font-bold">Total</span>
                 <span className="text-xl font-black text-[#C6F36B]">
                   BND {subtotal.toFixed(2)}
@@ -188,12 +191,15 @@ export default function CartPage() {
                 before your order is confirmed.
               </p>
 
+              <div className="commerce-primary-area">
+              <div className="commerce-mobile-total"><span>Total</span><strong>BND {subtotal.toFixed(2)}</strong></div>
               <Link
   href="/checkout"
-  className="mt-6 block w-full rounded-xl bg-[#C6F36B] px-5 py-4 text-center text-sm font-black text-[#171717] transition hover:bg-white"
+  className="commerce-primary mt-6 block w-full rounded-xl bg-[#C6F36B] px-5 py-4 text-center text-sm font-black text-[#171717] transition hover:bg-white"
 >
-  Proceed to Checkout →
+  Proceed to Checkout <StoreIcon name="arrow-right" size={18} />
 </Link>
+              </div>
             </aside>
           </div>
         )}

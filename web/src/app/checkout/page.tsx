@@ -577,46 +577,124 @@ export default function CheckoutPage() {
           </button>
       } />
       <div className="store-container store-page-content">
-
-
-        <p className="text-xs font-black uppercase tracking-[0.25em] text-[#C6F36B]">
-          Ruang Digital
-        </p>
-
-        <h1 className="mt-3 text-4xl font-black tracking-tight">
-          Checkout
-        </h1>
-
-        <div className="mt-6 flex items-center gap-3">
-          <div
-            className={`rounded-full px-4 py-2 text-xs font-black ${
-              step === 1
-                ? "bg-[#C6F36B] text-[#171717]"
-                : "bg-white/10 text-white/50"
-            }`}
-          >
-            1. DETAILS
-          </div>
-
-          <div className="h-px flex-1 bg-white/10" />
-
-          <div
-            className={`rounded-full px-4 py-2 text-xs font-black ${
-              step === 2
-                ? "bg-[#C6F36B] text-[#171717]"
-                : "bg-white/10 text-white/50"
-            }`}
-          >
-            2. PAYMENT
-          </div>
+        <div className="commerce-page-heading">
+          <p className="commerce-kicker">One step closer to your next session</p>
+          <h1>Checkout</h1>
+          <p>Review your details. Pay with confidence.</p>
         </div>
+        <ol className="commerce-checkout-progress" aria-label="Checkout sections">
+          <li aria-current={step === 1 ? "step" : undefined}><span>01</span> Contact</li>
+          <li><span>02</span> Review</li>
+          <li aria-current={step === 2 ? "step" : undefined}><span>03</span> Payment</li>
+        </ol>
+        <div className="commerce-checkout-grid">
+          <section className="commerce-contact-panel" aria-labelledby="checkout-contact-heading">
+            <div className="commerce-section-heading"><span className="commerce-section-number" aria-hidden="true">01</span><div><h2 id="checkout-contact-heading">Contact information</h2><p>We’ll use these details to update you about your order.</p></div></div>
+            {step === 1 ? <>
+              <div className="mt-6 space-y-5">
+                <div>
+                  <label htmlFor="customer-name" className="mb-2 block text-sm font-bold">
+                    Name <span className="text-[#C6F36B]">*</span>
+                  </label>
 
-        <div className="store-checkout-grid">
-        {/* ORDER SUMMARY */}
-        <section className="store-checkout-summary mt-8 rounded-[22px] border border-white/10 bg-[#1D1E1C] p-5 sm:p-6">
-          <h2 className="text-lg font-black">Order summary</h2>
+                  <input id="customer-name" aria-invalid={Boolean(nameError)} aria-describedby={nameError ? "customer-name-error" : undefined}
+                    type="text"
+                    value={name}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      setNameError("");
+                    }}
+                    placeholder="Enter your name"
+                    autoComplete="name"
+                    className={`w-full rounded-xl border bg-[#101114] px-4 py-3 text-sm text-white outline-none transition ${
+                      nameError
+                        ? "border-red-500"
+                        : name.trim()
+                          ? "border-green-500"
+                          : "border-white/10 focus:border-[#C6F36B]"
+                    }`}
+                  />
 
-          <div className="mt-6 space-y-5">
+                  {nameError && (
+                    <p id="customer-name-error" role="alert" className="mt-2 text-xs text-red-400">
+                      {nameError}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="customer-whatsapp" className="mb-2 block text-sm font-bold">
+                    WhatsApp Number{" "}
+                    <span className="text-[#C6F36B]">*</span>
+                  </label>
+
+                  <input id="customer-whatsapp" aria-invalid={Boolean(whatsappError)} aria-describedby={whatsappError ? "customer-whatsapp-error" : undefined}
+                    type="tel"
+                    value={whatsapp}
+                    onChange={(e) => {
+                      setWhatsapp(e.target.value);
+                      setWhatsappError("");
+                    }}
+                    placeholder="e.g. +673 8123456"
+                    autoComplete="tel"
+                    className={`w-full rounded-xl border bg-[#101114] px-4 py-3 text-sm text-white outline-none transition ${
+                      whatsappError
+                        ? "border-red-500"
+                        : whatsapp.replace(/\D/g, "").length >= 7 &&
+                            whatsapp.replace(/\D/g, "").length <= 15
+                          ? "border-green-500"
+                          : "border-white/10 focus:border-[#C6F36B]"
+                    }`}
+                  />
+
+                  {whatsappError && (
+                    <p id="customer-whatsapp-error" role="alert" className="mt-2 text-xs text-red-400">
+                      {whatsappError}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="customer-email" className="mb-2 block text-sm font-bold">
+                    Email Address{" "}
+                    <span className="text-xs font-normal text-white/40">
+                      (Optional)
+                    </span>
+                  </label>
+
+                  <input id="customer-email" aria-invalid={Boolean(emailError)} aria-describedby={emailError ? "customer-email-error" : undefined}
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setEmailError("");
+                    }}
+                    placeholder="Enter your email address"
+                    autoComplete="email"
+                    className={`w-full rounded-xl border bg-[#101114] px-4 py-3 text-sm text-white outline-none transition ${
+                      emailError
+                        ? "border-red-500"
+                        : email.trim() &&
+                            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+                          ? "border-green-500"
+                          : "border-white/10 focus:border-[#C6F36B]"
+                    }`}
+                  />
+
+                  {emailError && (
+                    <p id="customer-email-error" role="alert" className="mt-2 text-xs text-red-400">
+                      {emailError}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {formError && <p role="alert" className="commerce-form-error">{formError}</p>}
+            </> : <dl className="commerce-contact-review"><div><dt>Name</dt><dd>{name}</dd></div><div><dt>WhatsApp</dt><dd>{whatsapp}</dd></div>{email && <div><dt>Email</dt><dd>{email}</dd></div>}</dl>}
+          </section>
+        <section aria-labelledby="checkout-summary-heading" className="store-checkout-summary mt-8 rounded-[22px] border border-white/10 bg-[#1D1E1C] p-5 sm:p-6">
+          <div className="commerce-section-heading"><span className="commerce-section-number" aria-hidden="true">02</span><div><h2 id="checkout-summary-heading">Order summary</h2><p>A final look at your selection.</p></div></div>
+
+          <div className="commerce-checkout-items mt-6 space-y-5">
             {cart.map((item) => (
               <div
                 key={item.cartItemId}
@@ -641,7 +719,7 @@ export default function CheckoutPage() {
             ))}
           </div>
 
-          <div className="mt-6 flex justify-between text-lg font-black">
+          <div className="commerce-total mt-6 flex justify-between text-lg font-black">
             <span>Total</span>
 
             <span className="text-[#C6F36B]">
@@ -650,137 +728,10 @@ export default function CheckoutPage() {
           </div>
         </section>
 
-        <div className="store-checkout-active">
-        {/* CUSTOMER DETAILS */}
-        {step === 1 && (
-          <>
-            <section className="mt-6 rounded-[22px] border border-white/10 bg-[#1D1E1C] p-5 sm:p-6">
-              <h2 className="text-lg font-black">
-                Customer details
-              </h2>
-
-              <div className="mt-6 space-y-5">
-                <div>
-                  <label htmlFor="customer-name" className="mb-2 block text-sm font-bold">
-                    Name <span className="text-[#C6F36B]">*</span>
-                  </label>
-
-                  <input id="customer-name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => {
-                      setName(e.target.value);
-                      setNameError("");
-                    }}
-                    placeholder="Enter your name"
-                    autoComplete="name"
-                    className={`w-full rounded-xl border bg-[#101114] px-4 py-3 text-sm text-white outline-none transition ${
-                      nameError
-                        ? "border-red-500"
-                        : name.trim()
-                          ? "border-green-500"
-                          : "border-white/10 focus:border-[#C6F36B]"
-                    }`}
-                  />
-
-                  {nameError && (
-                    <p className="mt-2 text-xs text-red-400">
-                      {nameError}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="customer-whatsapp" className="mb-2 block text-sm font-bold">
-                    WhatsApp Number{" "}
-                    <span className="text-[#C6F36B]">*</span>
-                  </label>
-
-                  <input id="customer-whatsapp"
-                    type="tel"
-                    value={whatsapp}
-                    onChange={(e) => {
-                      setWhatsapp(e.target.value);
-                      setWhatsappError("");
-                    }}
-                    placeholder="e.g. +673 8123456"
-                    autoComplete="tel"
-                    className={`w-full rounded-xl border bg-[#101114] px-4 py-3 text-sm text-white outline-none transition ${
-                      whatsappError
-                        ? "border-red-500"
-                        : whatsapp.replace(/\D/g, "").length >= 7 &&
-                            whatsapp.replace(/\D/g, "").length <= 15
-                          ? "border-green-500"
-                          : "border-white/10 focus:border-[#C6F36B]"
-                    }`}
-                  />
-
-                  {whatsappError && (
-                    <p className="mt-2 text-xs text-red-400">
-                      {whatsappError}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="customer-email" className="mb-2 block text-sm font-bold">
-                    Email Address{" "}
-                    <span className="text-xs font-normal text-white/40">
-                      (Optional)
-                    </span>
-                  </label>
-
-                  <input id="customer-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      setEmailError("");
-                    }}
-                    placeholder="Enter your email address"
-                    autoComplete="email"
-                    className={`w-full rounded-xl border bg-[#101114] px-4 py-3 text-sm text-white outline-none transition ${
-                      emailError
-                        ? "border-red-500"
-                        : email.trim() &&
-                            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
-                          ? "border-green-500"
-                          : "border-white/10 focus:border-[#C6F36B]"
-                    }`}
-                  />
-
-                  {emailError && (
-                    <p className="mt-2 text-xs text-red-400">
-                      {emailError}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {formError && (
-              <p className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
-                {formError}
-              </p>
-            )}
-
-            <button
-              type="button"
-              onClick={handleContinue}
-              className="mt-6 w-full rounded-full bg-[#C6F36B] px-6 py-4 text-sm font-black uppercase tracking-wider text-[#171717] transition hover:bg-white"
-            >
-              Continue to Payment →
-            </button>
-          </>
-        )}
-
-        {/* PAYMENT */}
-        {step === 2 && (
-          <>
-            <section className="mt-6 rounded-[22px] border border-white/10 bg-[#1D1E1C] p-5 sm:p-6">
-              <h2 className="text-lg font-black">
-                Bank transfer
-              </h2>
+          <div className="commerce-payment-area">
+            {step === 1 ? <section className="commerce-payment-preview" aria-labelledby="checkout-payment-heading"><div className="commerce-section-heading"><span className="commerce-section-number" aria-hidden="true">03</span><div><h2 id="checkout-payment-heading">Payment</h2><p>Bank transfer & payment receipt</p></div></div><p>Continue with your contact details to view payment instructions and upload your receipt.</p></section> : <>
+            <section aria-labelledby="checkout-payment-heading" className="commerce-payment-panel mt-6 rounded-[22px] border border-white/10 bg-[#1D1E1C] p-5 sm:p-6">
+              <div className="commerce-section-heading"><span className="commerce-section-number" aria-hidden="true">03</span><div><h2 id="checkout-payment-heading">Payment</h2><p>Bank transfer</p></div></div>
 
               {settingsLoading ? (
                 <p className="mt-4 text-sm text-white/50">
@@ -808,7 +759,7 @@ export default function CheckoutPage() {
                   </p>
 
                   {paymentSettings.bank_name && (
-                    <div className="mt-6">
+                    <div className="commerce-bank-detail mt-6">
                       <p className="text-xs text-white/40">Bank</p>
                       <p className="mt-1 font-bold">
                         {paymentSettings.bank_name}
@@ -817,7 +768,7 @@ export default function CheckoutPage() {
                   )}
 
                   {paymentSettings.account_name && (
-                    <div className="mt-4">
+                    <div className="commerce-bank-detail mt-4">
                       <p className="text-xs text-white/40">
                         Account name
                       </p>
@@ -828,7 +779,7 @@ export default function CheckoutPage() {
                   )}
 
                   {paymentSettings.account_number && (
-                    <div className="mt-4">
+                    <div className="commerce-bank-detail mt-4">
                       <p className="text-xs text-white/40">
                         Account number
                       </p>
@@ -856,7 +807,7 @@ export default function CheckoutPage() {
                   )}
 
                   {paymentSettings.payment_qr_url && (
-                    <div className="mt-6">
+                    <div className="commerce-qr mt-6">
                       <p className="mb-3 text-xs text-white/40">
                         Scan to pay
                       </p>
@@ -883,7 +834,7 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
-                  <div className="mt-6 border-t border-white/10 pt-5">
+                  <div className="commerce-payment-total mt-6 border-t border-white/10 pt-5">
                     <p className="text-xs text-white/40">
                       Amount to transfer
                     </p>
@@ -913,12 +864,12 @@ export default function CheckoutPage() {
                     Choose receipt file
                   </span>
 
-                  <span className="mt-2 block text-xs text-white/40">
+                  <span id="receipt-help" className="mt-2 block text-xs text-white/40">
                     JPG, PNG, WEBP or PDF · Maximum 5MB
                   </span>
 
                   <input
-                    type="file"
+                    type="file" aria-invalid={Boolean(receiptError)} aria-describedby={receiptError ? "receipt-help receipt-error" : "receipt-help"}
                     accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
                     onChange={handleReceiptChange}
                     disabled={isSubmitting}
@@ -948,7 +899,7 @@ export default function CheckoutPage() {
                 )}
 
                 {receiptError && (
-                  <p className="mt-3 text-xs text-red-400">
+                  <p id="receipt-error" role="alert" className="mt-3 text-xs text-red-400">
                     {receiptError}
                   </p>
                 )}
@@ -972,7 +923,7 @@ export default function CheckoutPage() {
             )}
 
             {submitError && (
-              <div className="mt-6 rounded-xl border border-red-500/20 bg-red-500/10 p-4">
+              <div role="alert" className="mt-6 rounded-xl border border-red-500/20 bg-red-500/10 p-4">
                 <p className="text-sm font-bold text-red-400">
                   Unable to complete checkout
                 </p>
@@ -983,29 +934,30 @@ export default function CheckoutPage() {
               </div>
             )}
 
+            </>}
+          </div>
+          <div className="commerce-checkout-actions">
+            <div className="commerce-primary-area">
+              <div className="commerce-mobile-total"><span>Total</span><strong>BND {subtotal.toFixed(2)}</strong></div>
+              {step === 1 ? <button type="button" onClick={handleContinue} className="commerce-primary">Continue to Payment →</button> : <>
             <button
               type="button"
               onClick={handleSubmitOrder}
               disabled={!canSubmit}
-              className="mt-6 w-full rounded-full bg-[#C6F36B] px-6 py-4 text-sm font-black uppercase tracking-wider text-[#171717] transition hover:bg-white disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/40"
+              className="commerce-primary mt-6 w-full rounded-full bg-[#C6F36B] px-6 py-4 text-sm font-black uppercase tracking-wider text-[#171717] transition hover:bg-white disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/40"
             >
               {isSubmitting
                 ? "Submitting your order..."
-                : "Submit Order"}
+                : "Place Order"}
             </button>
 
-            <p className="mt-4 text-center text-xs leading-5 text-white/40">
-              Please ensure your payment receipt is correct before
-              submitting. Your payment will be reviewed by our team.
-            </p>
-          </>
-        )}
 
+              </>}
+              {(step === 1 ? formError : receiptError || submitError) && <p className="commerce-mobile-warning" aria-hidden="true">Please review the highlighted details.</p>}
+            </div>
+            {step === 2 && <p className="commerce-payment-note">Please ensure your payment receipt is correct before submitting. Your payment will be reviewed by our team.</p>}
+          </div>
         </div>
-        </div>
-        <p className="mt-6 text-xs leading-6 text-white/40">
-          Your details are used to contact you about your order.
-        </p>
       </div>
     </main>
   );

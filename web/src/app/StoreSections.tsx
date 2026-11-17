@@ -343,7 +343,7 @@ function GameArtwork({ game }: { game: Category }) {
 function CategoryTile({ game, index }: { game: Category; index: number }) {
   return <Link href={`/games/${encodeURIComponent(game.slug)}`} className={`store-category store-category-tone-${index % 3}`}>
     <GameArtwork game={game} />
-    <div className="store-category-caption"><div><p>Explore the collection</p><h3>{game.name}</h3></div><span className="store-category-arrow" aria-hidden="true">↗</span></div>
+    <div className="store-category-caption"><div><p>Explore the collection</p><h3>{game.name}</h3></div><span className="store-category-arrow" aria-hidden="true"><StoreIcon name="arrow-up-right" size={20} /></span></div>
   </Link>;
 }
 

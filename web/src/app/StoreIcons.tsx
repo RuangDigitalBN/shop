@@ -1,5 +1,7 @@
 export default function StoreIcon({ name, size = 24 }: { name: string; size?: number }) {
   const paths: Record<string, string> = {
+    "arrow-up-right": "M7 17 17 7M7 7h10v10",
+    "arrow-right": "M4 12h16m-6-6 6 6-6 6",
     home: "M3 11 12 3l9 8v10h-6v-7H9v7H3Z",
     games: "M7 7h10c3 0 5 10 3 12-2 1-4-3-5-3H9c-1 0-3 4-5 3C2 17 4 7 7 7ZM6 11h5m-2.5-2.5v5M16 11h.01M19 13h.01",
     cart: "M2 3h3l3 12h10l3-9H6M9 20h.01M18 20h.01",
