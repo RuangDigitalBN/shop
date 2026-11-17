@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
-import { Manrope, Space_Grotesk, Geist_Mono } from "next/font/google";
+import { Manrope, Space_Grotesk, Geist_Mono, Sora } from "next/font/google";
 import "./globals.css";
+import "./storefront-premium.css";
 import { CartProvider } from "./CartContext";
+
+const sora = Sora({ variable: "--font-sora", subsets: ["latin"], display: "swap" });
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -27,7 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${manrope.variable} ${spaceGrotesk.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${sora.variable} ${manrope.variable} ${spaceGrotesk.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
         <CartProvider>{children}</CartProvider>

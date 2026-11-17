@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { SectionHeading, StoreStatus } from "./StoreUI";
 import StoreIcon from "./StoreIcons";
+import { getGameFields } from "@/lib/game-fields";
 import { supabase } from "@/lib/supabase";
 
 type Category = {
@@ -31,14 +32,6 @@ type Product = {
   stock_quantity: number | null;
   sort_order: number | null;
 };
-
-const gameGradients = [
-  "from-[#7137B8]/20 via-[#241B31] to-[#101114]",
-  "from-[#a66a32]/20 via-[#51331f] to-[#101114]",
-  "from-[#c94d28]/20 via-[#67271e] to-[#101114]",
-  "from-[#64717c]/20 via-[#343c43] to-[#101114]",
-  "from-[#315b86]/20 via-[#20334a] to-[#101114]",
-];
 
 const productGradients = [
   "from-[#7861cf] to-[#292044]",
@@ -79,12 +72,12 @@ export function GamesSection() {
 
   return (
     <section id="games" className="store-container store-section">
-      <SectionHeading eyebrow="Find your game top-up here" action={<a href="#popular">View All →</a>}>Categories</SectionHeading>
+      <SectionHeading eyebrow="Your next session starts here" action={<a href="#popular">Browse products →</a>}>Find your game.</SectionHeading>
 
       {loading ? (
         <StoreStatus>Loading games...</StoreStatus>
       ) : error ? (
-        <StoreStatus error>{error}</StoreStatus>
+        <StoreStatus error>{error} <button type="button" onClick={() => window.location.reload()}>Try again →</button></StoreStatus>
       ) : games.length === 0 ? (
         <p className="rounded-2xl border border-white/10 bg-[#202020] p-6 text-sm text-white/45">
           No games are available at the moment. Please check back soon.
@@ -98,9 +91,9 @@ export function GamesSection() {
   );
 }
 
-export function PopularProductsSection() {
+export function PopularProductsSection({ gameSlug }: { gameSlug?: string } = {}) {
   const searchParams = useSearchParams();
-  const selectedGame = searchParams.get("game");
+  const selectedGame = gameSlug ?? searchParams.get("game");
   const selectedType = searchParams.get("type");
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -121,7 +114,7 @@ export function PopularProductsSection() {
           .order("created_at", { ascending: false }),
         supabase
           .from("categories")
-          .select("id, name, slug, description")
+          .select("id, name, slug, description, image_url")
           .eq("is_active", true).order("sort_order").order("name"),
         supabase.from("product_types").select("id, category_id, name, slug").eq("is_active", true).order("sort_order").order("name"),
       ]);
@@ -172,6 +165,10 @@ export function PopularProductsSection() {
     params.delete("type");
     if (game) params.set("game", game);
     if (game && type) params.set("type", type);
+    if (gameSlug && game) {
+      params.delete("game");
+      return `/games/${encodeURIComponent(game)}${params.size ? `?${params}` : ""}#popular`;
+    }
     return `/${params.size ? `?${params}` : ""}#popular`;
   }
 
@@ -180,9 +177,12 @@ export function PopularProductsSection() {
 
   return (
     <section id="popular" className="store-container store-section">
-      <SectionHeading eyebrow="Top-ups & digital essentials" action={<Link href="/#popular">View All →</Link>}>Popular Products</SectionHeading>
-      {query && <p className="store-search-result">Search: “{searchParams.get("q")}” · {searchedProducts.length} results <Link href="/#popular">Clear search</Link></p>}
-      <div className="store-filters" aria-label="Filter products by game">
+      {gameSlug && <Link className="store-back-link" href="/#games">← All games & categories</Link>}
+      {gameSlug && !loading && !error && selectedCategory && <GameIntro game={selectedCategory} />}
+      {gameSlug && !loading && !error && !selectedCategory ? <div className="store-game-unavailable"><h1>Game unavailable</h1><StoreStatus>This category is unavailable. Explore our games to find your next top-up.</StoreStatus><Link className="store-action" href="/#games">Explore games →</Link></div> : <>
+      <SectionHeading eyebrow={gameSlug ? "Choose your top-up or digital item" : "Top-ups & digital essentials"} action={!gameSlug && <a href="#games">Explore games →</a>}>{gameSlug ? "Choose your product." : "Popular products."}</SectionHeading>
+      {query && <p className="store-search-result">Search: “{searchParams.get("q")}” · {searchedProducts.length} results <Link href={gameSlug ? `/games/${encodeURIComponent(gameSlug)}` : "/#popular"}>Clear search</Link></p>}
+      {!gameSlug && <div className="store-filters" aria-label="Browse games">
   <Link
     href={filterHref(null)}
     scroll={false}
@@ -199,8 +199,7 @@ export function PopularProductsSection() {
   {categories.map((category) => (
     <Link
       key={category.id}
-      href={filterHref(category.slug)}
-      scroll={false}
+      href={`/games/${encodeURIComponent(category.slug)}`}
       aria-current={selectedGame === category.slug ? "true" : undefined}
         className={`shrink-0 rounded-full border px-4 py-2 text-[10px] font-black uppercase tracking-wider transition ${
         selectedGame === category.slug
@@ -211,7 +210,7 @@ export function PopularProductsSection() {
       {category.name}
     </Link>
   ))}
-</div>
+</div>}
       {selectedCategory && visibleTypes.length > 0 && (
         <div className="store-filters" aria-label={`Product Types for ${selectedCategory.name}`}>
           {[{ id: "all", slug: "", name: "All Types" }, ...visibleTypes].map((type) => {
@@ -224,7 +223,7 @@ export function PopularProductsSection() {
       {loading ? (
         <StoreStatus>Loading products...</StoreStatus>
       ) : error ? (
-        <StoreStatus error>{error}</StoreStatus>
+        <StoreStatus error>{error} <button type="button" onClick={() => window.location.reload()}>Try again →</button></StoreStatus>
       ) : searchedProducts.length === 0 ? (
         <p className="rounded-2xl border border-white/10 bg-[#202020] p-6 text-sm text-white/45">
           {query ? "No products match your search. Try another game or product." : "New products are coming soon. Please check back later."}
@@ -326,18 +325,35 @@ export function PopularProductsSection() {
 </div>
 
       )}
+      </>}
     </section>
   );
 }
 
-function CategoryTile({ game, index }: { game: Category; index: number }) {
+function GameArtwork({ game }: { game: Category }) {
   const [failedImage, setFailedImage] = useState<string | null>(null);
-  const name = game.name.toLowerCase();
-  const symbol = name.includes("mobile legends") ? "ML" : name.includes("pubg") ? "PUBG" : name.includes("valorant") ? "V" : name.includes("free fire") ? "F" : name.includes("steam") ? "◉" : name.includes("roblox") ? "◇" : "✦";
-  return <a href={`/?game=${game.slug}#popular`} className={`store-category bg-gradient-to-br ${gameGradients[index % gameGradients.length]}`}>
+  return <div className="store-game-art" aria-hidden="true">
     {game.image_url && failedImage !== game.image_url ? (
-      // eslint-disable-next-line @next/next/no-img-element -- Category art comes from admin-managed public URLs.
-      <img className="store-game-image" src={game.image_url} alt="" loading="lazy" onError={() => setFailedImage(game.image_url ?? null)} />
-    ) : <span className={`store-game-symbol store-game-symbol-${name.includes("valorant") || name.includes("free fire") ? "red" : name.includes("steam") || symbol === "✦" ? "white" : "gold"}`} aria-hidden="true">{symbol}</span>}<h3>{game.name}</h3>
-  </a>;
+      // eslint-disable-next-line @next/next/no-img-element -- Existing admin-managed public artwork.
+      <img src={game.image_url} alt="" loading="lazy" onError={() => setFailedImage(game.image_url ?? null)} />
+    ) : <span className="store-game-monogram">{game.name.split(/\s+/).slice(0, 2).map((word) => word[0]).join("")}</span>}
+  </div>;
+}
+
+function CategoryTile({ game, index }: { game: Category; index: number }) {
+  return <Link href={`/games/${encodeURIComponent(game.slug)}`} className={`store-category store-category-tone-${index % 3}`}>
+    <GameArtwork game={game} />
+    <div className="store-category-caption"><div><p>Explore the collection</p><h3>{game.name}</h3></div><span className="store-category-arrow" aria-hidden="true">↗</span></div>
+  </Link>;
+}
+
+function GameIntro({ game }: { game: Category }) {
+  const fields = getGameFields(game.name);
+  return <>
+    <header className="store-game-intro">
+      <GameArtwork game={game} />
+      <div className="store-game-intro-copy"><p className="store-eyebrow">Ruang Digital / Game collection</p><h1>{game.name}</h1>{game.description && <p>{game.description}</p>}</div>
+    </header>
+    <p className="store-game-guidance">{fields ? `Have your ${fields.map((field) => field.label).join(" and ")} ready. Enter your details after choosing a product.` : "Choose a product to view its details and availability."} Review your product’s order method before placing your order.</p>
+  </>;
 }
