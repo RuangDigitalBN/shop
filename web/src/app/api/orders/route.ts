@@ -1,4 +1,5 @@
 
+import { getGameFields, validateGameFields } from "@/lib/game-fields";
 import { randomUUID } from "node:crypto";
 import { after, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -7,8 +8,8 @@ import { notifyNewOrder } from "@/lib/telegram-orders";
 type SubmittedItem = {
   productId: string;
   quantity: number;
-  playerId: string;
-  zoneId: string;
+  playerId?: unknown;
+  zoneId?: unknown;
 };
 
 type CheckoutRequest = {
@@ -224,13 +225,7 @@ export async function POST(request: Request) {
         !UUID_REGEX.test(item.productId) ||
         !Number.isInteger(item.quantity) ||
         item.quantity < 1 ||
-        item.quantity > 100 ||
-        typeof item.playerId !== "string" ||
-        !item.playerId.trim() ||
-        item.playerId.trim().length > 64 ||
-        typeof item.zoneId !== "string" ||
-        !item.zoneId.trim() ||
-        item.zoneId.trim().length > 32
+        item.quantity > 100
       ) {
         return errorResponse(
           "One or more cart items are invalid.",
@@ -248,7 +243,7 @@ export async function POST(request: Request) {
       await supabaseAdmin
         .from("products")
         .select(
-          "id, name, slug, sku, price, is_active, track_stock, stock_quantity"
+          "id, name, slug, sku, price, is_active, track_stock, stock_quantity, category_id"
         )
         .in("id", uniqueProductIds)
         .eq("is_active", true);
@@ -265,6 +260,30 @@ export async function POST(request: Request) {
         "One or more products are no longer available.",
         400
       );
+    }
+
+    // Resolve requirements from the product's trusted category, never client labels.
+    const categoryIds = [...new Set(products.map((product) => product.category_id).filter(Boolean))];
+    const { data: categories, error: categoryError } = await supabaseAdmin
+      .from("categories").select("id, name, slug").in("id", categoryIds).eq("is_active", true);
+    if (categoryError || !categories) return errorResponse("Unable to verify game details.", 500);
+    const categoryMap = new Map(categories.map((category) => [category.id, category]));
+    const detailsByItem: Record<string, string>[] = [];
+    for (const item of items) {
+      const product = products.find((candidate) => candidate.id === item.productId)!;
+      const category = categoryMap.get(product.category_id);
+      if (!category) return errorResponse("This game's products are unavailable.", 400);
+      const validation = validateGameFields(category.name, item);
+      if (!validation.values) return errorResponse(validation.error!, 400);
+      const details: Record<string, string> = {
+        product_slug: product.slug,
+        category_name: category.name,
+        category_slug: category.slug,
+      };
+      for (const field of getGameFields(category.name)!) {
+        details[field.detailKey] = validation.values[field.key];
+      }
+      detailsByItem.push(details);
     }
 
     const productMap = new Map(
@@ -305,7 +324,7 @@ export async function POST(request: Request) {
     // Calculate all prices using trusted database values.
     let subtotalCents = 0;
 
-    const orderItems = items.map((item) => {
+    const orderItems = items.map((item, index) => {
       const product = productMap.get(item.productId)!;
 
       const rawPrice = Number(product.price);
@@ -334,11 +353,7 @@ export async function POST(request: Request) {
         unit_price: unitPriceCents / 100,
         quantity: item.quantity,
         line_total: lineTotalCents / 100,
-        product_details: {
-          product_slug: product.slug,
-          player_id: item.playerId.trim(),
-          server_id: item.zoneId.trim(),
-        },
+        product_details: detailsByItem[index],
       };
     });
 

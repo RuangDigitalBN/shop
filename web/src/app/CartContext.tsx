@@ -9,7 +9,10 @@ import {
   type ReactNode,
 } from "react";
 
+import { cartAccountKey, validateGameFields } from "@/lib/game-fields";
+
 export type CartItem = {
+  categoryName?: string;
   cartItemId: string;
   productId: string;
   slug: string;
@@ -108,11 +111,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 
   function addItem(item: NewCartItem) {
+    const validation = validateGameFields(item.categoryName ?? "Mobile Legends (Global)", item);
+    if (!validation.values) return { success: false, message: validation.error! };
+    item = { ...item, ...validation.values };
     const existingItem = cart.find(
       (cartItem) =>
-        cartItem.productId === item.productId &&
-        cartItem.playerId === item.playerId &&
-        cartItem.zoneId === item.zoneId
+        cartAccountKey(cartItem) === cartAccountKey(item)
     );
 
     const currentQuantity = existingItem?.quantity ?? 0;

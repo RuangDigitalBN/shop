@@ -280,9 +280,12 @@ body {
   .storefront .store-product-row { grid-template-columns: 44px minmax(0,1fr); padding: 12px; gap: 6px 12px; }
   .storefront .store-product-row > div:first-child { width: 44px; height: 44px; }
   .storefront .store-product-info h3 { font-size: 14px; }
-  .storefront .store-product-price { min-width: 0; gap: 8px; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; }
+  .storefront .store-product-info > p { display: block; overflow: visible; -webkit-line-clamp: unset; }
+  .storefront .store-product-price { grid-row: 2; }
+  .storefront .store-product-price > div { flex: 1; }
+  .storefront .store-product-price { min-width: 0; gap: 8px; justify-content: space-between; align-items: center; flex-wrap: nowrap; }
   .storefront .store-product-price p:nth-child(2) { font-size: 15px; }
-  .storefront .store-row-action { min-height: 38px; padding: 0 10px; font-size: 12px; }
+  .storefront .store-row-action { min-height: 38px; padding: 0 10px; border-radius: 15px; font-size: 12px; }
   .storefront .store-filters { flex-wrap: nowrap; overflow-x: auto; padding-block: 4px 8px; }
   .storefront .store-bottom-nav { display: grid; grid-template-columns: repeat(4,1fr); position: fixed; bottom: 0; left: 0; right: 0; z-index: 40; padding: 10px 12px max(10px,env(safe-area-inset-bottom)); background: #0a0b0ff5; border-top: 1px solid #ffffff10; backdrop-filter: blur(14px); }
   .storefront .store-bottom-nav a { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; color: #eee; }
@@ -291,3 +294,5 @@ body {
   .storefront .store-bottom-nav b { position: absolute; right: -9px; top: -5px; font-size: 10px; background: var(--store-lime); color: #111; border-radius: 12px; min-width: 16px; text-align: center; }
   .storefront.store-home { padding-bottom: 82px; }
 }
+
+.storefront .store-category .store-game-image { width: 64px; height: 54px; object-fit: contain; border-radius: 8px; }

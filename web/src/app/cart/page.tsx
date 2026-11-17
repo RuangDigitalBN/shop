@@ -4,6 +4,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "../CartContext";
+import { accountEntries } from "@/lib/game-fields";
 import StoreHeader from "../StoreHeader";
 
 export default function CartPage() {
@@ -105,8 +106,7 @@ export default function CartPage() {
                     </p>
 
                     <div className="mt-3 space-y-1 text-xs text-white/50">
-                      <p>Player ID: {item.playerId}</p>
-                      <p>Server ID: {item.zoneId}</p>
+                      {accountEntries(item).map((entry) => <p key={entry.label}>{entry.label}: {entry.value}</p>)}
                     </div>
 
                     <div className="mt-4 flex flex-wrap items-center gap-3">

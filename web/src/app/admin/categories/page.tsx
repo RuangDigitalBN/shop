@@ -11,6 +11,7 @@ type Category = {
   name: string;
   slug: string;
   description: string | null;
+  image_url?: string | null;
   is_active: boolean;
   sort_order: number;
 };
@@ -27,8 +28,24 @@ export default function CategoriesPage() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [localPreview, setLocalPreview] = useState("");
+  const [imageFailed, setImageFailed] = useState(false);
+  const [fileInputKey, setFileInputKey] = useState(0);
   const [isActive, setIsActive] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  useEffect(() => () => {
+    if (localPreview) URL.revokeObjectURL(localPreview);
+  }, [localPreview]);
+
+  function resetImage() {
+    setImageFile(null);
+    setLocalPreview("");
+    setImageFailed(false);
+    setFileInputKey((key) => key + 1);
+  }
 
   function generateSlug(value: string) {
     return value
@@ -41,7 +58,8 @@ export default function CategoriesPage() {
   async function loadCategories() {
     const { data, error } = await supabase
       .from("categories")
-      .select("id, name, slug, description, is_active, sort_order")
+      // Read optional artwork without breaking existing catalogs before setup SQL is applied.
+      .select("*")
       .order("sort_order", { ascending: true });
 
     if (error) {
@@ -85,6 +103,8 @@ export default function CategoriesPage() {
     setName(category.name);
     setSlug(category.slug);
     setDescription(category.description ?? "");
+    setImageUrl(category.image_url ?? "");
+    resetImage();
     setIsActive(category.is_active);
     setError("");
     setSuccess("");
@@ -95,6 +115,8 @@ export default function CategoriesPage() {
     setName("");
     setSlug("");
     setDescription("");
+    setImageUrl("");
+    resetImage();
     setIsActive(true);
     setError("");
     setSuccess("");
@@ -116,42 +138,60 @@ export default function CategoriesPage() {
       return;
     }
 
-    const categoryData = {
-      name: cleanName,
-      slug: cleanSlug,
-      description: description.trim() || null,
-      is_active: isActive,
-    };
-
-    const { error } = editingId
-      ? await supabase
-          .from("categories")
-          .update(categoryData)
-          .eq("id", editingId)
-      : await supabase.from("categories").insert({
-          ...categoryData,
-          sort_order: categories.length,
-        });
-
-    if (error) {
-      setError(
-        error.code === "23505"
-          ? "This category name or URL slug already exists."
-          : error.message
-      );
+    let savedImageUrl = imageUrl.trim();
+    if (savedImageUrl && !/^https?:\/\//i.test(savedImageUrl)) {
+      setError("Enter an http or https image URL.");
       setSaving(false);
       return;
     }
 
-    setSuccess(
-      editingId
-        ? "Category updated successfully."
-        : "Category added successfully."
-    );
+    const categoryId = editingId ?? crypto.randomUUID();
+    try {
+      if (imageFile) {
+        const extensions: Record<string, string> = {
+          "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif",
+        };
+        const extension = extensions[imageFile.type];
+        if (!extension || imageFile.size > 5 * 1024 * 1024 || imageFile.size === 0) {
+          throw new Error("Choose a JPG, PNG, WebP or GIF image up to 5 MB.");
+        }
+        const path = `${categoryId}/${crypto.randomUUID()}.${extension}`;
+        const { error: uploadError } = await supabase.storage.from("product-images")
+          .upload(path, imageFile, { contentType: imageFile.type, cacheControl: "3600", upsert: false });
+        if (uploadError) throw new Error("Image upload failed. " + uploadError.message);
+        savedImageUrl = supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+        // Keep a successful upload in the draft so a failed database save can be retried.
+        setImageUrl(savedImageUrl);
+        resetImage();
+      }
 
-    cancelEditing();
-    await loadCategories();
-    setSaving(false);
+      const categoryData = {
+        name: cleanName,
+        slug: cleanSlug,
+        description: description.trim() || null,
+        image_url: savedImageUrl || null,
+        is_active: isActive,
+      };
+      const query = editingId
+        ? supabase.from("categories").update(categoryData).eq("id", editingId)
+        : supabase.from("categories").insert({ ...categoryData, id: categoryId, sort_order: categories.length });
+      const { data, error: saveError } = await query.select("id").single();
+      if (saveError || !data) {
+        if (saveError?.code === "23505") throw new Error("This category name or URL slug already exists.");
+        if (saveError?.message.includes("image_url")) {
+          throw new Error("Game images need database setup before saving. Your changes are still here.");
+        }
+        throw new Error(saveError?.message ?? "The game could not be saved. Please refresh and try again.");
+      }
+      // Previous artwork is retained: other games or open editors may still reference it.
+      cancelEditing();
+      setSuccess(editingId ? "Category updated successfully." : "Category added successfully.");
+      await loadCategories();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Unable to save the game. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -187,7 +227,8 @@ export default function CategoriesPage() {
               {editingId ? "Edit game" : "Add game"}
             </h2>
 
-            <form onSubmit={handleAddCategory} className="mt-6 space-y-5">
+            <form onSubmit={handleAddCategory} className="mt-6">
+              <fieldset disabled={saving || loading} className="space-y-5 disabled:opacity-60">
               <div>
                 <label className="mb-2 block text-xs font-bold text-white/60">
                   Game name
@@ -233,6 +274,41 @@ export default function CategoriesPage() {
                 />
               </div>
 
+              <div className="space-y-3">
+                <label htmlFor="game-image-url" className="block text-xs font-bold text-white/60">Game image URL</label>
+                <input id="game-image-url" type="url" value={imageUrl} placeholder="https://example.com/game.jpg"
+                  onChange={(event) => { setImageUrl(event.target.value); resetImage(); }}
+                  className="w-full rounded-xl border border-white/10 bg-[#171717] px-4 py-3 text-sm outline-none focus:border-[#C6F36B]" />
+                <label htmlFor="game-image-file" className="block text-xs font-bold text-white/60">Or upload an image</label>
+                <input key={fileInputKey} id="game-image-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="w-full text-xs text-white/70"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) { resetImage(); return; }
+                    if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type) || file.size === 0 || file.size > 5 * 1024 * 1024) {
+                      setError("Choose a JPG, PNG, WebP or GIF image up to 5 MB.");
+                      event.target.value = "";
+                      resetImage();
+                      return;
+                    }
+                    setError("");
+                    setImageFile(file);
+                    setLocalPreview(URL.createObjectURL(file));
+                    setImageFailed(false);
+                  }} />
+                <p className="text-xs text-white/40">JPG, PNG, WebP or GIF, up to 5 MB. Artwork is saved when you save the game.</p>
+                {(localPreview || imageUrl.trim()) && (
+                  <div className="space-y-2">
+                    {imageFailed ? <p role="status" className="text-xs text-amber-300">Image could not be loaded. Check the URL or choose another file.</p> : (
+                      // eslint-disable-next-line @next/next/no-img-element -- Supports external URLs and local file previews.
+                      <img src={localPreview || imageUrl.trim()} alt={`${name || "Game"} preview`} onError={() => setImageFailed(true)}
+                        className="h-36 w-full rounded-xl border border-white/10 bg-[#171717] object-contain" />
+                    )}
+                    <button type="button" className="text-xs font-bold text-[#C6F36B]" onClick={() => { setImageUrl(""); resetImage(); }}>Remove image</button>
+                  </div>
+                )}
+              </div>
+
               <label className="flex items-center gap-3 text-sm text-white/70">
                 <input
                   type="checkbox"
@@ -244,13 +320,13 @@ export default function CategoriesPage() {
               </label>
 
               {error && (
-                <p className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
+                <p role="alert" className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
                   {error}
                 </p>
               )}
 
               {success && (
-                <p className="rounded-lg border border-[#C6F36B]/20 bg-[#C6F36B]/10 p-3 text-sm text-[#C6F36B]">
+                <p role="status" className="rounded-lg border border-[#C6F36B]/20 bg-[#C6F36B]/10 p-3 text-sm text-[#C6F36B]">
                   {success}
                 </p>
               )}
@@ -276,6 +352,7 @@ export default function CategoriesPage() {
                   Cancel Editing
                 </button>
               )}
+              </fieldset>
             </form>
           </div>
 
@@ -330,6 +407,7 @@ export default function CategoriesPage() {
 
                       <button
                         type="button"
+                        disabled={saving || loading}
                         onClick={() => startEditing(category)}
                         className="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold transition hover:border-[#C6F36B] hover:text-[#C6F36B]"
                       >

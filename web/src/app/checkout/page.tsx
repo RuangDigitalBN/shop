@@ -1,6 +1,8 @@
 
 "use client";
 
+import { accountEntries } from "@/lib/game-fields";
+
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "../CartContext";
@@ -623,13 +625,9 @@ export default function CheckoutPage() {
                 <div>
                   <p className="font-bold">{item.name}</p>
 
-                  <p className="mt-1 text-xs text-white/50">
-                    Player ID: {item.playerId}
-                  </p>
-
-                  <p className="text-xs text-white/50">
-                    Server ID: {item.zoneId}
-                  </p>
+                  {accountEntries(item).map((entry) => (
+                    <p key={entry.label} className="mt-1 text-xs text-white/50">{entry.label}: {entry.value}</p>
+                  ))}
 
                   <p className="mt-1 text-xs text-white/50">
                     Quantity: {item.quantity}

@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { orderAccountEntries } from "@/lib/game-fields";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -13,12 +14,7 @@ type OrderItem = {
   unit_price: number | string;
   quantity: number;
   line_total: number | string;
-  product_details: {
-    player_id?: string;
-    server_id?: string;
-    playerId?: string;
-    zoneId?: string;
-  } | null;
+  product_details: Record<string, unknown> | null;
 };
 
 type Order = {
@@ -502,8 +498,7 @@ export default function AdminOrdersPage() {
                     <div className="mt-3 space-y-3">
                       {order.items.map((item) => {
                         const details = item.product_details ?? {};
-                        const playerId = details.player_id || details.playerId;
-                        const serverId = details.server_id || details.zoneId;
+                        const account = orderAccountEntries(details);
 
                         return (
                           <div
@@ -517,16 +512,8 @@ export default function AdminOrdersPage() {
                                   SKU: {item.product_sku}
                                 </p>
                               )}
-                              {playerId && (
-                                <p className="mt-1 text-xs text-white/50">
-                                  Player ID: {playerId}
-                                </p>
-                              )}
-                              {serverId && (
-                                <p className="mt-1 text-xs text-white/50">
-                                  Server ID: {serverId}
-                                </p>
-                              )}
+                              {typeof details.category_name === "string" && <p className="mt-1 text-xs text-white/50">Game: {details.category_name}</p>}
+                              {account.map((entry) => <p key={entry.label} className="mt-1 text-xs text-white/50">{entry.label}: {entry.value}</p>)}
                               <p className="mt-1 text-xs text-white/40">
                                 Quantity: {item.quantity}
                               </p>

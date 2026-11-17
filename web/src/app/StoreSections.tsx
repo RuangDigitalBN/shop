@@ -12,6 +12,7 @@ type Category = {
   name: string;
   slug: string;
   description: string | null;
+  image_url?: string | null;
 };
 
 type ProductType = { id: string; category_id: string; name: string; slug: string };
@@ -59,7 +60,7 @@ export function GamesSection() {
     async function loadGames() {
       const { data, error } = await supabase
         .from("categories")
-        .select("id, name, slug, description")
+        .select("*")
         .eq("is_active", true)
         .order("sort_order", { ascending: true })
         .order("name", { ascending: true });
@@ -330,9 +331,13 @@ export function PopularProductsSection() {
 }
 
 function CategoryTile({ game, index }: { game: Category; index: number }) {
+  const [failedImage, setFailedImage] = useState<string | null>(null);
   const name = game.name.toLowerCase();
   const symbol = name.includes("mobile legends") ? "ML" : name.includes("pubg") ? "PUBG" : name.includes("valorant") ? "V" : name.includes("free fire") ? "F" : name.includes("steam") ? "◉" : name.includes("roblox") ? "◇" : "✦";
   return <a href={`/?game=${game.slug}#popular`} className={`store-category bg-gradient-to-br ${gameGradients[index % gameGradients.length]}`}>
-    <span className={`store-game-symbol store-game-symbol-${name.includes("valorant") || name.includes("free fire") ? "red" : name.includes("steam") || symbol === "✦" ? "white" : "gold"}`} aria-hidden="true">{symbol}</span><h3>{game.name}</h3>
+    {game.image_url && failedImage !== game.image_url ? (
+      // eslint-disable-next-line @next/next/no-img-element -- Category art comes from admin-managed public URLs.
+      <img className="store-game-image" src={game.image_url} alt="" loading="lazy" onError={() => setFailedImage(game.image_url ?? null)} />
+    ) : <span className={`store-game-symbol store-game-symbol-${name.includes("valorant") || name.includes("free fire") ? "red" : name.includes("steam") || symbol === "✦" ? "white" : "gold"}`} aria-hidden="true">{symbol}</span>}<h3>{game.name}</h3>
   </a>;
 }

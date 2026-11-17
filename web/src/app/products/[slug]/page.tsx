@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useCart } from "../../CartContext";
+import { getGameFields, validateGameFields } from "@/lib/game-fields";
 import StoreHeader from "../../StoreHeader";
 
 type Product = {
@@ -44,6 +45,8 @@ export default function ProductPage() {
       setProduct(null);
       setCategoryName("");
       setError("");
+      setPlayerId("");
+      setZoneId("");
 
       const { data, error } = await supabase
         .from("products")
@@ -94,6 +97,8 @@ export default function ProductPage() {
     loadProduct();
   }, [slug]);
 
+  const fields = getGameFields(categoryName);
+
   const soldOut =
     product?.track_stock === true &&
     Number(product.stock_quantity ?? 0) <= 0;
@@ -106,8 +111,9 @@ export default function ProductPage() {
     setCartMessage("");
     setCartError("");
 
-    if (!playerId.trim() || !zoneId.trim()) {
-      setCartError("Please enter both your Player ID and Server ID.");
+    const validation = validateGameFields(categoryName, { playerId, zoneId });
+    if (!validation.values) {
+      setCartError(validation.error!);
       return;
     }
 
@@ -118,8 +124,8 @@ export default function ProductPage() {
       imageUrl: product.image_url,
       unitPrice: Number(product.price),
       quantity,
-      playerId: playerId.trim(),
-      zoneId: zoneId.trim(),
+      categoryName,
+      ...validation.values,
       trackStock: product.track_stock === true,
       stockQuantity: product.stock_quantity,
     });
@@ -213,35 +219,20 @@ export default function ProductPage() {
               </div>
 
               <form onSubmit={handleAddToCart} className="mt-8 space-y-5">
-                <div>
-                  <label htmlFor="player-id" className="mb-2 block text-xs font-bold uppercase tracking-wider text-white/60">
-                    Player ID
-                  </label>
-
-                  <input id="player-id"
-                    type="text"
-                    required
-                    value={playerId}
-                    onChange={(e) => setPlayerId(e.target.value)}
-                    placeholder="Enter your Player ID"
-                    className="w-full rounded-xl border border-white/10 bg-[#202020] px-4 py-3 text-sm text-white outline-none focus:border-[#C6F36B]"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="server-id" className="mb-2 block text-xs font-bold uppercase tracking-wider text-white/60">
-                    Server ID (Zone ID)
-                  </label>
-
-                  <input id="server-id"
-                    type="text"
-                    required
-                    value={zoneId}
-                    onChange={(e) => setZoneId(e.target.value)}
-                    placeholder="Enter your Server ID"
-                    className="w-full rounded-xl border border-white/10 bg-[#202020] px-4 py-3 text-sm text-white outline-none focus:border-[#C6F36B]"
-                  />
-                </div>
+                {!fields && <p role="alert">Account fields are not configured for this game.</p>}
+                {fields?.map((field) => (
+                  <div key={field.key}>
+                    <label htmlFor={`account-${field.key}`} className="mb-2 block text-xs font-bold uppercase tracking-wider text-white/60">
+                      {field.label}
+                    </label>
+                    <input id={`account-${field.key}`} type="text" required maxLength={field.maxLength}
+                      inputMode={field.detailKey === "phone_number" ? "tel" : "text"}
+                      value={field.key === "playerId" ? playerId : zoneId}
+                      onChange={(event) => field.key === "playerId" ? setPlayerId(event.target.value) : setZoneId(event.target.value)}
+                      placeholder={`Enter your ${field.label}`}
+                      className="w-full rounded-xl border border-white/10 bg-[#202020] px-4 py-3 text-sm text-white outline-none focus:border-[#C6F36B]" />
+                  </div>
+                ))}
 
                 <div>
                   <p className="mb-2 text-xs font-bold uppercase tracking-wider text-white/60">Quantity</p>
@@ -316,7 +307,7 @@ export default function ProductPage() {
 
                 <button
                   type="submit"
-                  disabled={soldOut}
+                  disabled={soldOut || !fields}
                   className="w-full rounded-xl bg-[#C6F36B] px-6 py-4 text-sm font-black uppercase tracking-wider text-[#171717] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {soldOut ? "Sold Out" : "Add to Cart"}
