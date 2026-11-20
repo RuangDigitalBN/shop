@@ -30,7 +30,7 @@ export default function Home() {
         </div>
       </section>
       <StoreBottomNav />
-      <footer className="store-container store-footer"><div><StoreBrand /><p>Your game. Your world. Your space.</p></div><p>© 2026 Ruang Digital. All rights reserved.</p></footer>
+      <footer className="store-container store-footer"><div><StoreBrand /><p>Your game. Your world. Your space.</p><a href="/requests" className="text-sm underline underline-offset-4">Request a game / Feedback</a></div><p>© 2026 Ruang Digital. All rights reserved.</p></footer>
     </main>
   );
 }

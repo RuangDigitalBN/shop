@@ -15,6 +15,11 @@ type DashboardStats = {
 
 const managementLinks = [
   {
+    title: "Requests",
+    description: "Review game requests and customer feedback.",
+    href: "/admin/requests",
+  },
+  {
     title: "Products",
     description: "Add, edit and manage your products.",
     href: "/admin/products",
