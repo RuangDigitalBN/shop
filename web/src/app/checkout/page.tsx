@@ -9,6 +9,9 @@ import { useCart } from "../CartContext";
 import { supabase } from "@/lib/supabase";
 import StoreHeader from "../StoreHeader";
 import StoreBrand from "../StoreBrand";
+import Link from "next/link";
+import { useShopStatus } from "../ShopStatus";
+import { shopStatusMessage } from "@/lib/shop-status";
 
 type PaymentSettings = {
   bank_transfer_enabled: boolean;
@@ -26,6 +29,7 @@ type CheckoutSession = {
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, subtotal, isLoaded, clearCart } = useCart();
+  const { status, canOrder, checking, refresh } = useShopStatus();
 
   const [step, setStep] = useState<1 | 2>(1);
 
@@ -110,7 +114,8 @@ export default function CheckoutPage() {
     if (receiptPreviewRef.current) URL.revokeObjectURL(receiptPreviewRef.current);
   }, []);
 
-  function handleContinue() {
+  async function handleContinue() {
+    if (!canOrder || checking) { setFormError(shopStatusMessage(status)); return; }
     setFormError("");
     setNameError("");
     setWhatsappError("");
@@ -142,6 +147,9 @@ export default function CheckoutPage() {
       setFormError("Please correct the highlighted fields.");
       return;
     }
+
+    const freshStatus = await refresh();
+    if (freshStatus !== "open") { setFormError(shopStatusMessage(freshStatus)); return; }
 
     sessionStorage.setItem(
       "ruang-checkout-details",
@@ -272,6 +280,7 @@ export default function CheckoutPage() {
 
   // Create the order, then upload its payment receipt.
   async function handleSubmitOrder() {
+    if (!canOrder || checking) { setSubmitError(shopStatusMessage(status)); return; }
     setSubmitError("");
     setReceiptError("");
 
@@ -314,6 +323,8 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
+      const freshStatus = await refresh();
+      if (freshStatus !== "open") { setSubmitError(shopStatusMessage(freshStatus)); return; }
       const idempotencyKey = getCheckoutIdempotencyKey();
 
       const customer = {
@@ -528,6 +539,15 @@ export default function CheckoutPage() {
     );
   }
 
+  if (!canOrder) {
+    return <main className="storefront store-checkout"><StoreHeader variant="checkout" />
+      <div className="store-container shop-paused"><h1>{status === "closed" ? "Orders are temporarily paused" : status === "loading" ? "Checking order availability" : "Ordering is temporarily unavailable"}</h1>
+        <p role="status">{shopStatusMessage(status)}</p>
+        <div className="shop-paused-actions"><Link href="/cart" className="commerce-secondary">View cart</Link><Link href="/" className="commerce-secondary">Browse games</Link>
+          <button type="button" className="commerce-secondary" disabled={checking} onClick={() => { void refresh(); }}>Check again</button></div>
+      </div></main>;
+  }
+
   if (cart.length === 0) {
     return (
       <main className="storefront store-checkout">
@@ -554,6 +574,7 @@ export default function CheckoutPage() {
     Boolean(paymentSettings?.payment_qr_url);
 
   const canSubmit =
+    canOrder && !checking &&
     !settingsLoading &&
     !settingsError &&
     paymentSettings?.bank_transfer_enabled === true &&
@@ -939,7 +960,7 @@ export default function CheckoutPage() {
           <div className="commerce-checkout-actions">
             <div className="commerce-primary-area">
               <div className="commerce-mobile-total"><span>Total</span><strong>BND {subtotal.toFixed(2)}</strong></div>
-              {step === 1 ? <button type="button" onClick={handleContinue} className="commerce-primary">Continue to Payment →</button> : <>
+              {step === 1 ? <button type="button" disabled={checking} onClick={handleContinue} className="commerce-primary">Continue to Payment →</button> : <>
             <button
               type="button"
               onClick={handleSubmitOrder}

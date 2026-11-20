@@ -10,6 +10,8 @@ import { getGameFields, validateGameFields } from "@/lib/game-fields";
 import { getOrderMethod, whatsappOrderUrl } from "@/lib/whatsapp-order";
 import StoreHeader from "../../StoreHeader";
 import ProductArtwork from "../../ProductArtwork";
+import { useShopStatus } from "../../ShopStatus";
+import { shopStatusMessage } from "@/lib/shop-status";
 
 type Product = {
   id: string;
@@ -28,6 +30,7 @@ type Product = {
 
 export default function ProductPage() {
   const { addItem } = useCart();
+  const { status, canOrder, checking, refresh } = useShopStatus();
 
   const { slug } = useParams<{ slug: string }>();
   const [product, setProduct] = useState<Product | null>(null);
@@ -119,10 +122,11 @@ export default function ProductPage() {
     product?.track_stock === true &&
     Number(product.stock_quantity ?? 0) <= 0;
 
-  function handleAddToCart(event: FormEvent<HTMLFormElement>) {
+  async function handleAddToCart(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!product || soldOut) return;
+    if (!canOrder || checking) { setCartError(shopStatusMessage(status)); return; }
 
     setCartMessage("");
     setCartError("");
@@ -133,17 +137,17 @@ export default function ProductPage() {
       return;
     }
 
+    const freshStatus = await refresh();
+    if (freshStatus !== "open") { setCartError(shopStatusMessage(freshStatus)); return; }
+
     if (whatsappOrder) {
       const order = whatsappOrderUrl(product, categoryName, validation.values, quantity);
       if (!order.url) {
         setCartError(order.error!);
         return;
       }
-      window.open(
-        order.url,
-        "_blank",
-        "noopener,noreferrer",
-      );
+      // Navigate after the fresh status check without relying on an async popup.
+      window.location.assign(order.url);
       return;
     }
 
@@ -330,10 +334,10 @@ export default function ProductPage() {
 
                 <button
                   type="submit"
-                  disabled={soldOut || !fields || (whatsappOrder && !validation.values)}
+                  disabled={soldOut || !canOrder || checking || !fields || (whatsappOrder && !validation.values)}
                   className="w-full rounded-xl bg-[#C6F36B] px-6 py-4 text-sm font-black uppercase tracking-wider text-[#171717] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {soldOut ? "Sold Out" : whatsappOrder ? "Order via WhatsApp" : "Add to Cart"}
+                  {soldOut ? "Sold Out" : checking ? "Checking availability…" : !canOrder ? status === "closed" ? "Temporarily Closed" : "Ordering unavailable" : whatsappOrder ? "Order via WhatsApp" : "Add to Cart"}
                 </button>
               </form>
             </div>

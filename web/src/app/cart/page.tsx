@@ -7,8 +7,10 @@ import { useCart } from "../CartContext";
 import { accountEntries } from "@/lib/game-fields";
 import StoreHeader from "../StoreHeader";
 import StoreIcon from "../StoreIcons";
+import { useShopStatus } from "../ShopStatus";
 
 export default function CartPage() {
+  const { canOrder, status } = useShopStatus();
   const {
     cart,
     itemCount,
@@ -181,12 +183,12 @@ export default function CartPage() {
 
               <div className="commerce-primary-area">
               <div className="commerce-mobile-total"><span>Total</span><strong>BND {subtotal.toFixed(2)}</strong></div>
-              <Link
+              {canOrder ? <Link
   href="/checkout"
   className="commerce-primary mt-6 block w-full rounded-xl bg-[#C6F36B] px-5 py-4 text-center text-sm font-black text-[#171717] transition hover:bg-white"
 >
   Proceed to Checkout <StoreIcon name="arrow-right" size={18} />
-</Link>
+</Link> : <button type="button" disabled className="commerce-primary">{status === "closed" ? "Temporarily Closed" : "Ordering unavailable"}</button>}
               </div>
             </aside>
           </div>

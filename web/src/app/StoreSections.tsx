@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { SectionHeading, StoreStatus } from "./StoreUI";
 import StoreIcon from "./StoreIcons";
 import ProductArtwork from "./ProductArtwork";
+import { useShopStatus } from "./ShopStatus";
 import { getGameFields } from "@/lib/game-fields";
 import { supabase } from "@/lib/supabase";
 
@@ -88,6 +89,7 @@ export function GamesSection() {
 }
 
 export function PopularProductsSection({ gameSlug }: { gameSlug?: string } = {}) {
+  const { canOrder } = useShopStatus();
   const searchParams = useSearchParams();
   const selectedGame = gameSlug ?? searchParams.get("game");
   const selectedType = searchParams.get("type");
@@ -302,7 +304,7 @@ export function PopularProductsSection({ gameSlug }: { gameSlug?: string } = {})
               )}
           </div>
 
-          <span className="store-row-action"><StoreIcon name="cart" size={18} />{soldOut ? "View" : "Add"}</span>
+          <span className="store-row-action"><StoreIcon name="cart" size={18} />{soldOut || !canOrder ? "View" : "Add"}</span>
         </div>
       </a>
     );

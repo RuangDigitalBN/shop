@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import ShopStatusControl from "./ShopStatusControl";
 
 type DashboardStats = {
   products: number;
@@ -226,6 +227,7 @@ export default function AdminDashboard() {
           </button>
         </div>
 
+        <ShopStatusControl />
         <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {statCards.map((item) => (
             <div

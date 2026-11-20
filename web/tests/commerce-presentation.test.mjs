@@ -29,6 +29,8 @@ function content(element) {
 const common = {
   'react/jsx-runtime': jsx,
   '@/lib/game-fields': fields,
+  '../ShopStatus': { useShopStatus: () => ({ status: 'open', canOrder: true, checking: false, refresh: async () => 'open' }) },
+  '@/lib/shop-status': { shopStatusMessage: state => state === 'closed' ? 'We’re temporarily closed. Orders will reopen soon.' : 'Ordering is temporarily unavailable. Please try again.' },
   '../StoreHeader': { default: () => null },
   '../StoreBrand': { default: () => null },
   '../StoreIcons': { default: () => null },
@@ -54,12 +56,13 @@ test('cart keeps images, account details, totals and the existing quantity/remov
   assert.equal(all.filter(n => n.type === 'a' && n.props.href === '/checkout').length, 1);
 });
 
-async function checkout({ bankEnabled = true, uploadFails = false } = {}) {
+async function checkout({ shopState = 'open', freshState = shopState, bankEnabled = true, uploadFails = false } = {}) {
   const states = [], refs = [], effects = [], requests = [], storage = new Map();
   let cursor = 0, refCursor = 0, mounted = false, cleared = 0;
   const settings = { bank_transfer_enabled: bankEnabled, bank_name: 'Preview Bank', account_name: 'Preview Store', account_number: '123456', payment_qr_url: '/qr.png' };
   const page = load('src/app/checkout/page.tsx', {
     ...common,
+    '../ShopStatus': { useShopStatus: () => ({ status: shopState, canOrder: shopState === 'open', checking: false, refresh: async () => freshState }) },
     react: {
       useState(initial) { const i = cursor++; if (!(i in states)) states[i] = initial; return [states[i], value => { states[i] = typeof value === 'function' ? value(states[i]) : value; }]; },
       useRef(initial) { const i = refCursor++; return refs[i] ??= { current: initial }; },
@@ -88,9 +91,9 @@ async function checkout({ bankEnabled = true, uploadFails = false } = {}) {
   await new Promise(resolve => setImmediate(resolve));
   function fill(id, value) { find(n => n.props.id === id).props.onChange({ target: { value } }); }
   function button(label) { return find(n => n.type === 'button' && content(n).trim() === label); }
-  function continueToPayment() { fill('customer-name', 'Preview Customer'); fill('customer-whatsapp', '+6738123456'); button('Continue to Payment →').props.onClick(); }
+  async function continueToPayment() { fill('customer-name', 'Preview Customer'); fill('customer-whatsapp', '+6738123456'); await button('Continue to Payment →').props.onClick(); }
   function receipt(file) { find(n => n.type === 'input' && n.props.type === 'file').props.onChange({ target: { files: [file], value: file.name } }); }
-  return { render, find, fill, button, continueToPayment, receipt, requests, storage, text: () => { render(); return content(tree); }, cleared: () => cleared };
+  return { setFreshState: value => { freshState = value; }, setShopState: value => { shopState = value; }, render, find, fill, button, continueToPayment, receipt, requests, storage, text: () => { render(); return content(tree); }, cleared: () => cleared };
 }
 
 test('contact validation remains before payment, with associated accessible errors', async () => {
@@ -108,7 +111,7 @@ test('contact validation remains before payment, with associated accessible erro
 });
 
 test('payment still shows bank/QR settings and requires a valid receipt before submission', async () => {
-  const h = await checkout(); h.continueToPayment();
+  const h = await checkout(); await h.continueToPayment();
   assert.match(h.text(), /Preview Bank/);
   assert.ok(h.find(n => n.type === 'img' && n.props.src === '/qr.png'));
   assert.equal(h.button('Place Order').props.disabled, true);
@@ -123,14 +126,14 @@ test('payment still shows bank/QR settings and requires a valid receipt before s
 });
 
 test('disabled payment settings continue to prevent order submission', async () => {
-  const h = await checkout({ bankEnabled: false }); h.continueToPayment();
+  const h = await checkout({ bankEnabled: false }); await h.continueToPayment();
   assert.match(h.text(), /Bank transfer is currently unavailable/);
   assert.equal(h.button('Place Order').props.disabled, true);
   assert.equal(h.find(n => n.type === 'input' && n.props.type === 'file'), undefined);
 });
 
 test('Place Order preserves the order payload, receipt upload and success cleanup', async () => {
-  const h = await checkout(); h.continueToPayment(); h.receipt(new File(['preview'], 'receipt.pdf', { type: 'application/pdf' }));
+  const h = await checkout(); await h.continueToPayment(); h.receipt(new File(['preview'], 'receipt.pdf', { type: 'application/pdf' }));
   await h.button('Place Order').props.onClick();
   assert.equal(h.requests.length, 2);
   assert.equal(h.requests[0].url, '/api/orders');
@@ -144,10 +147,43 @@ test('Place Order preserves the order payload, receipt upload and success cleanu
 });
 
 test('failed receipt upload retains the cart and retry key', async () => {
-  const h = await checkout({ uploadFails: true }); h.continueToPayment(); h.receipt(new File(['preview'], 'receipt.pdf', { type: 'application/pdf' }));
+  const h = await checkout({ uploadFails: true }); await h.continueToPayment(); h.receipt(new File(['preview'], 'receipt.pdf', { type: 'application/pdf' }));
   await h.button('Place Order').props.onClick();
   assert.equal(h.cleared(), 0);
   assert.ok(h.storage.has('ruang-checkout-session'));
   assert.match(h.text(), /Unable to complete checkout/);
   assert.match(h.text(), /Upload failed/);
+});
+
+test('closed cart stays viewable with items and totals but has no checkout link', () => {
+  const page = load('src/app/cart/page.tsx', { ...common,
+    '../ShopStatus': { useShopStatus: () => ({ status: 'closed', canOrder: false }) },
+    '../CartContext': { useCart: () => ({ cart: [item], itemCount: 2, subtotal: 4, isLoaded: true }) },
+  }).default;
+  const tree = page(), all = nodes(tree);
+  assert.match(content(tree), /86 Diamonds/); assert.match(content(tree), /4.00/);
+  assert.equal(all.some(n => n.type === 'a' && n.props.href === '/checkout'), false);
+  assert.equal(all.find(n => n.type === 'button' && content(n) === 'Temporarily Closed').props.disabled, true);
+});
+for (const shopState of ['closed', 'unavailable', 'loading']) {
+  test('checkout ' + shopState + ' hides payment/order actions and retains the cart', async () => {
+    const h = await checkout({ shopState });
+    assert.equal(h.button('Place Order'), undefined); assert.equal(h.button('Continue to Payment →'), undefined);
+    assert.equal(h.find(n => n.type === 'input' && n.props.type === 'file'), undefined);
+    assert.ok(h.find(n => n.type === 'a' && n.props.href === '/cart'));
+    assert.equal(h.requests.length, 0); assert.equal(h.cleared(), 0);
+  });
+}
+test('fresh closure prevents continuing to payment despite stale open UI', async () => {
+  const h = await checkout({ freshState: 'closed' }); await h.continueToPayment();
+  assert.equal(h.button('Place Order'), undefined); assert.match(h.text(), /temporarily closed/);
+  assert.equal(h.requests.length, 0); assert.equal(h.storage.size, 0);
+});
+test('fresh closure before Place Order prevents API calls, preserves cart and payment receipt', async () => {
+  const h = await checkout(); await h.continueToPayment();
+  h.receipt(new File(['preview'], 'receipt.pdf', { type: 'application/pdf' }));
+  h.setFreshState('closed'); await h.button('Place Order').props.onClick();
+  assert.equal(h.requests.length, 0); assert.equal(h.cleared(), 0); assert.match(h.text(), /temporarily closed/);
+  h.setFreshState('open'); await h.button('Place Order').props.onClick();
+  assert.equal(h.requests.length, 2); assert.equal(h.cleared(), 1);
 });

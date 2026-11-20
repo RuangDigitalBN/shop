@@ -49,6 +49,7 @@ test('thrown catalog network failures leave loading and show a retry state for g
       react: h.react, 'react/jsx-runtime': jsx, 'next/link': { default: 'a' },
       'next/navigation': { useSearchParams: () => new URLSearchParams() },
       './StoreUI': { SectionHeading: 'heading', StoreStatus: 'store-status' }, './StoreIcons': { default: 'icon' },
+      './ShopStatus': { useShopStatus: () => ({ status: 'open', canOrder: true, checking: false, refresh: async () => 'open' }) },
       './ProductArtwork': { default: 'artwork' }, '@/lib/game-fields': { getGameFields: () => [] },
       '@/lib/supabase': { supabase: { from() { return { select() { return this; }, eq() { return this; }, order() { return this; },
         then(resolve, reject) { return Promise.reject(new Error('offline')).then(resolve, reject); },
@@ -73,6 +74,8 @@ function productPage(query) {
   const h = hooks(); let slug = 'old';
   const Component = load('src/app/products/[slug]/page.tsx', {
     react: h.react, 'react/jsx-runtime': jsx, 'next/link': { default: 'a' }, 'next/navigation': { useParams: () => ({ slug }) },
+    '../../ShopStatus': { useShopStatus: () => ({ status: 'open', canOrder: true, checking: false, refresh: async () => 'open' }) },
+    '@/lib/shop-status': { shopStatusMessage: state => state === 'closed' ? 'We’re temporarily closed. Orders will reopen soon.' : 'Ordering is temporarily unavailable. Please try again.' },
     '../../StoreHeader': { default: 'header' }, '../../ProductArtwork': { default: 'artwork' },
     '../../CartContext': { useCart: () => ({ addItem: () => ({ success: true }) }) },
     '@/lib/game-fields': fields, '@/lib/whatsapp-order': methods,
@@ -120,6 +123,7 @@ test('product navigation resets quantity and previous cart feedback without chan
 test('dashboard errors are announced and do not present failed statistics as zero sales/products', async () => {
   const h = hooks(), router = { replace() {} };
   const Component = load('src/app/admin/page.tsx', {
+    './ShopStatusControl': { default: 'shop-status-control' },
     react: h.react, 'react/jsx-runtime': jsx, 'next/link': { default: 'a' }, 'next/navigation': { useRouter: () => router },
     '@/lib/supabase': { supabase: { auth: { getUser: async () => ({ data: { user: { id: 'admin', email: 'test@example.com' } } }) },
       from(table) { return { select() { return this; }, eq() { return this; }, maybeSingle: async () => ({ data: { user_id: 'admin' }, error: null }),
@@ -130,5 +134,6 @@ test('dashboard errors are announced and do not present failed statistics as zer
   const render = () => { h.reset(); return nodes(Component()); };
   render(); h.commit(); await tick(); render(); h.commit(); await tick(); const tree = render();
   assert.ok(tree.some(n => n.props?.role === 'alert'));
+  assert.ok(tree.some(n => n.type === 'shop-status-control'));
   assert.equal(tree.filter(n => n.type === 'p' && n.props.children === '—').length, 4);
 });

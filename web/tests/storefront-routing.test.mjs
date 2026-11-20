@@ -28,7 +28,7 @@ function flatten(element) {
 }
 function text(nodes) { return nodes.flatMap(n => [n.props?.children].flat(Infinity)).filter(n => typeof n === 'string').join(' '); }
 
-async function render({ slug, query = '', component = 'PopularProductsSection', error = false } = {}) {
+async function render({ shopClosed = false, slug, query = '', component = 'PopularProductsSection', error = false } = {}) {
   const states = [], effects = [], reads = [];
   let cursor = 0, mounted = false;
   const imports = {
@@ -40,6 +40,7 @@ async function render({ slug, query = '', component = 'PopularProductsSection', 
       StoreStatus: ({ children, error }) => jsx.jsx('p', { role: error ? 'alert' : 'status', children }),
     },
     './StoreIcons': { default: () => null },
+    './ShopStatus': { useShopStatus: () => ({ canOrder: !shopClosed }) },
     './ProductArtwork': { default: ({ src }) => src ? jsx.jsx('img', { src }) : null },
     '@/lib/game-fields': { getGameFields: () => [{ label: 'User ID' }, { label: 'Server ID' }] },
     '@/lib/supabase': { supabase: { from(table) {
@@ -113,4 +114,12 @@ test('catalog failures show feedback and a retry action', async () => {
   const { nodes } = await render({ slug: 'future-game', error: true });
   assert.ok(nodes.some(n => n.props.role === 'alert'));
   assert.ok(nodes.some(n => n.type === 'button' && n.props.children === 'Try again →'));
+});
+
+test('closed shop keeps game/product browsing and filters, changing purchase-like row labels to View', async () => {
+  const { nodes } = await render({ shopClosed: true, slug: 'mobile-legends-global' });
+  assert.ok(nodes.some(n => n.type === 'a' && n.props.href === '/products/86-diamonds'));
+  assert.ok(nodes.some(n => n.type === 'a' && n.props.href.includes('?type=diamonds')));
+  const actions = nodes.filter(n => n.props.className === 'store-row-action');
+  assert.equal(actions.length, 2); assert.ok(actions.every(n => text([n]) === 'View'));
 });

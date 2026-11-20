@@ -5,6 +5,8 @@ import "./storefront-premium.css";
 import "./commerce-premium.css";
 import "./final-polish.css";
 import { CartProvider } from "./CartContext";
+import { ShopStatusProvider } from "./ShopStatus";
+import "./shop-status.css";
 
 const sora = Sora({ variable: "--font-sora", subsets: ["latin"], display: "swap" });
 
@@ -35,7 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${sora.variable} ${manrope.variable} ${spaceGrotesk.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
-        <CartProvider>{children}</CartProvider>
+        <ShopStatusProvider><CartProvider>{children}</CartProvider></ShopStatusProvider>
       </body>
     </html>
   );

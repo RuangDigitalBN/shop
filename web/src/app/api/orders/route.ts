@@ -1,4 +1,5 @@
 
+import { readShopState, shopStatusMessage } from "@/lib/shop-status";
 import { getGameFields, validateGameFields } from "@/lib/game-fields";
 import { getOrderMethod } from "@/lib/whatsapp-order";
 import { randomUUID } from "node:crypto";
@@ -372,6 +373,10 @@ export async function POST(request: Request) {
       `RD-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${randomUUID().slice(0, 6).toUpperCase()}`;
 
     // Create the order and reserve tracked stock atomically.
+    const shopState = await readShopState(supabaseAdmin);
+    if (shopState !== "open") {
+      return NextResponse.json({ success: false, code: shopState === "closed" ? "SHOP_CLOSED" : "SHOP_STATUS_UNAVAILABLE", error: shopStatusMessage(shopState) }, { status: 503, headers: { "Retry-After": "60", "Cache-Control": "no-store" } });
+    }
     const { data: orderId, error: orderError } =
       await supabaseAdmin.rpc("create_order_with_items", {
         p_order_number: orderNumber,

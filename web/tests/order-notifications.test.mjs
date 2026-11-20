@@ -29,6 +29,7 @@ function loadSource(file, imports, globals = {}) {
   return exports;
 }
 
+const shop = loadSource('src/lib/shop-status.ts', {});
 const key = '12345678-1234-4234-8234-123456789abc';
 const productId = '22345678-1234-4234-8234-123456789abc';
 const body = {
@@ -73,7 +74,7 @@ function harness(options = {}) {
         select() { return query; },
         eq(field, value) { filters[field] = value; return query; },
         in() { return query; },
-        maybeSingle: async () => ({ data: saved ?? (options.existing ? snapshot('RD-EXISTING') : null) }),
+        maybeSingle: async () => table === 'shop_settings' ? { data: options.shopUnavailable ? null : { is_open: !options.shopClosed } } : ({ data: saved ?? (options.existing ? snapshot('RD-EXISTING') : null) }),
         single: async () => table === 'payment_settings'
           ? { data: { bank_transfer_enabled: true } }
           : options.confirmationError ? { error: {} } : { data: saved },
@@ -108,6 +109,7 @@ function harness(options = {}) {
         jobs.push(job);
       },
     },
+    '@/lib/shop-status': shop,
     '@/lib/supabase-admin': { supabaseAdmin: database },
     '@/lib/telegram-orders': helper,
     '@/lib/game-fields': fields,
@@ -222,6 +224,8 @@ for (const [game, labels, primary, server, keys] of games) {
       'next/link': { default: 'a' },
       '@/lib/supabase': {},
       '../../CartContext': { useCart: () => ({ addItem() {} }) },
+      '../../ShopStatus': { useShopStatus: () => ({ status: 'open', canOrder: true, checking: false, refresh: async () => 'open' }) },
+      '@/lib/shop-status': shop,
       '../../StoreHeader': { default: () => null },
       '../../ProductArtwork': { default: 'product-artwork' },
       '@/lib/game-fields': fields,
@@ -324,4 +328,18 @@ test('cart provider merges matching accounts and separates different accounts fo
     cart().updateQuantity(cart().cart[0].cartItemId, 3);
     assert.equal(cart().cart[0].quantity, 3);
   }
+});
+
+for (const [options, code] of [[{ shopClosed: true }, 'SHOP_CLOSED'], [{ shopUnavailable: true }, 'SHOP_STATUS_UNAVAILABLE']]) {
+  test('order API rejects ' + code + ' without RPC, stock reservation or Telegram scheduling', async () => {
+    const h = harness(options); const response = await h.post();
+    assert.equal(response.status, 503); assert.equal(response.headers.get('Retry-After'), '60');
+    const result = await response.json(); assert.equal(result.success, false); assert.equal(result.code, code);
+    assert.equal(h.rpcCount, 0); assert.equal(h.jobs.length, 0); assert.equal(h.requests.length, 0);
+  });
+}
+test('closed shop preserves idempotent retrieval of an existing order without creating or notifying', async () => {
+  const h = harness({ shopClosed: true, existing: true }); const response = await h.post();
+  assert.equal(response.status, 200); assert.equal((await response.json()).reusedOrder, true);
+  assert.equal(h.rpcCount, 0); assert.equal(h.jobs.length, 0);
 });

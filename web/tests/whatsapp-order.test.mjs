@@ -35,7 +35,7 @@ function nodes(element) {
 }
 
 // Render the real page with local hooks and database/browser doubles; no external actions.
-async function page({ category = 'Roblox', type = 'robux', soldOut = false, metadata = { order_method: 'whatsapp' } } = {}) {
+async function page({ shopState = 'open', freshState = shopState, category = 'Roblox', type = 'robux', soldOut = false, metadata = { order_method: 'whatsapp' } } = {}) {
   const states = [], effects = [], added = [], opened = [];
   let cursor = 0, firstRender = true;
   const product = {
@@ -67,11 +67,13 @@ async function page({ category = 'Roblox', type = 'robux', soldOut = false, meta
       },
     } },
     '../../CartContext': { useCart: () => ({ addItem: item => { added.push(item); return { success: true }; } }) },
+    '../../ShopStatus': { useShopStatus: () => ({ status: shopState, canOrder: shopState === 'open', checking: false, refresh: async () => freshState }) },
+    '@/lib/shop-status': { shopStatusMessage: state => state === 'closed' ? 'We’re temporarily closed. Orders will reopen soon.' : 'Ordering is temporarily unavailable. Please try again.' },
     '../../StoreHeader': { default: () => null },
     '../../ProductArtwork': { default: 'product-artwork' },
     '@/lib/game-fields': fields,
     '@/lib/whatsapp-order': whatsapp,
-  }, { window: { open: (...args) => opened.push(args) } }).default;
+  }, { window: { location: { assign: url => opened.push([url]) } } }).default;
   const render = () => { cursor = 0; const tree = Component(); firstRender = false; return nodes(tree); };
   render();
   effects.forEach(effect => effect());
@@ -103,7 +105,7 @@ test('WhatsApp is blocked until the existing username validation passes', async 
   for (const username of ['', '   ', 'x'.repeat(65), 'bad\nname']) {
     p.input('playerId', username);
     assert.equal(p.button().props.disabled, true);
-    p.submit();
+    await p.submit();
   }
   assert.equal(p.opened.length, 0);
   assert.equal(p.added.length, 0);
@@ -113,24 +115,23 @@ test('valid Robux order opens an encoded concise message and never adds to cart'
   const p = await page();
   p.input('playerId', '  Player & Friend  ');
   assert.equal(p.button().props.disabled, false);
-  p.submit();
+  await p.submit();
   assert.equal(p.added.length, 0);
   assert.equal(p.opened.length, 1);
-  const [href, target, features] = p.opened[0];
+  const [href] = p.opened[0];
   const url = new URL(href);
   assert.equal(url.origin, 'https://wa.me');
   assert.equal(url.pathname, '/6737420706');
   assert.equal(url.searchParams.get('text'), '500 Robux\nPrice: BND 8.00\nRoblox username: Player & Friend');
   assert.doesNotMatch(url.searchParams.get('text'), /password|credential|login/i);
-  assert.equal(target, '_blank');
-  assert.equal(features, 'noopener,noreferrer');
+
 });
 
 test('multiple quantities include the unit price and correct total', async () => {
   const p = await page();
   p.input('playerId', 'Player');
   p.render().find(n => n.props?.['aria-label'] === 'Increase quantity').props.onClick();
-  p.submit();
+  await p.submit();
   assert.match(new URL(p.opened[0][0]).searchParams.get('text'), /Price: BND 8\.00\nQuantity: 2 · Total: BND 16\.00/);
 });
 
@@ -139,7 +140,7 @@ test('sold-out Robux orders cannot open WhatsApp or enter the cart', async () =>
   p.input('playerId', 'Player');
   assert.equal(p.button().props.disabled, true);
   assert.equal(p.button().props.children, 'Sold Out');
-  p.submit();
+  await p.submit();
   assert.equal(p.opened.length, 0);
   assert.equal(p.added.length, 0);
 });
@@ -156,7 +157,7 @@ for (const [category, type, playerId, zoneId] of [
     assert.equal(p.button().props.children, 'Add to Cart');
     p.input('playerId', playerId);
     if (zoneId) p.input('zoneId', zoneId);
-    p.submit();
+    await p.submit();
     assert.equal(p.opened.length, 0);
     assert.equal(p.added.length, 1);
     assert.equal(p.added[0].productId, p.product.id);
@@ -178,12 +179,12 @@ for (const [category, primary, zone, labels] of [
     p.input('playerId', primary);
     if (zone) {
       assert.equal(p.button().props.disabled, true);
-      p.submit();
+      await p.submit();
       assert.equal(p.opened.length, 0);
       p.input('zoneId', zone);
     }
     assert.equal(p.button().props.disabled, false);
-    p.submit();
+    await p.submit();
     assert.equal(p.added.length, 0);
     const message = new URL(p.opened[0][0]).searchParams.get('text');
     for (const label of labels) assert.ok(message.includes(label));
@@ -194,12 +195,12 @@ for (const [category, primary, zone, labels] of [
 test('invalid phone numbers and unknown game fields fail closed', async () => {
   const phone = await page({ category: 'Hotlink' });
   phone.input('playerId', 'not-a-number');
-  phone.submit();
+  await phone.submit();
   assert.equal(phone.button().props.disabled, true);
   assert.equal(phone.opened.length, 0);
   const unknown = await page({ category: 'Unknown game' });
   assert.equal(unknown.button().props.disabled, true);
-  unknown.submit();
+  await unknown.submit();
   assert.equal(unknown.opened.length, 0);
 });
 
@@ -352,3 +353,19 @@ test('single-product editor associates visible labels with its controls and anno
   }
   await a.save(); assert.ok(a.render().some(n => n.props?.role === 'alert'));
 });
+
+for (const metadata of [{}, { order_method: 'whatsapp' }]) {
+  for (const shopState of ['closed', 'unavailable', 'loading']) {
+    test('shop ' + shopState + ' disables and rejects ' + (metadata.order_method || 'normal checkout'), async () => {
+      const p = await page({ shopState, metadata }); p.input('playerId', 'Player');
+      assert.equal(p.button().props.disabled, true);
+      await p.submit(); assert.equal(p.added.length, 0); assert.equal(p.opened.length, 0);
+      assert.ok(p.render().some(n => n.type === 'h1'));
+    });
+  }
+  test('fresh closure prevents a stale open product from purchasing ' + (metadata.order_method || 'normal checkout'), async () => {
+    const p = await page({ freshState: 'closed', metadata }); p.input('playerId', 'Player');
+    assert.equal(p.button().props.disabled, false); await p.submit();
+    assert.equal(p.added.length, 0); assert.equal(p.opened.length, 0);
+  });
+}

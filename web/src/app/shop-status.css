@@ -1,0 +1,9 @@
+.storefront .store-shop-status { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 16px; padding: 12px 24px; background: #211d2a; border-bottom: 1px solid #c4a1ed26; color: #f5f3eb; font-size: 13px; line-height: 1.7; text-align: center; }
+.storefront .store-shop-status button { min-height: 44px; padding: 6px 12px; color: #c6f36b; text-decoration: underline; text-underline-offset: 3px; }
+.storefront .shop-paused { max-width: 640px; margin: 40px auto; padding-block: 24px; }
+.storefront .shop-paused h1 { font-size: clamp(26px, 5vw, 36px); margin-bottom: 16px; }
+.storefront .shop-paused p { color: #b4b5bb; margin-bottom: 24px; }
+.storefront .shop-paused-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.storefront .shop-paused-actions .commerce-secondary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 16px; border: 1px solid #ffffff30; border-radius: 10px; color: #f5f3eb; font-size: 14px; }
+.storefront .shop-paused-actions .commerce-secondary:hover { border-color: #c6f36b; }
+.storefront .shop-paused-actions .commerce-secondary:disabled { opacity: .5; cursor: not-allowed; }
