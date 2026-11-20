@@ -26,6 +26,7 @@ function load(file, imports, globals = {}) {
 }
 const fields = load('src/lib/game-fields.ts', {});
 const whatsapp = load('src/lib/whatsapp-order.ts', { './game-fields': fields });
+const adminProducts = load('src/lib/admin-products.ts', { './whatsapp-order': whatsapp }, { URL });
 
 function nodes(element) {
   if (!element || typeof element !== 'object') return [];
@@ -209,20 +210,25 @@ test('messages include only configured fields, never extra account credentials',
 });
 
 async function admin(metadata) {
-  const states = [], effects = [], writes = [];
+  const states = [], effects = [], writes = [], uploads = [], removals = [];
   let cursor = 0, first = true;
   const product = {
     id: 'product-id', category_id: 'game-id', product_type_id: 'type-id',
     name: 'Test product', slug: 'test-product', sku: null, description: null,
-    image_url: null, price: 8, compare_at_price: null, stock_quantity: null,
+    image_url: 'https://example.com/shared.png', price: 8, compare_at_price: null, stock_quantity: null,
     track_stock: false, is_active: true, metadata,
   };
   const database = {
+    storage: { from: () => ({
+      upload: async (path, file) => { uploads.push({ path, file }); return {}; },
+      getPublicUrl: path => ({ data: { publicUrl: 'https://example.com/' + path } }),
+      remove: async paths => { removals.push(paths); return {}; },
+    }) },
     auth: { getUser: async () => ({ data: { user: { id: 'admin' } } }) },
     from(table) {
       let operation;
       const query = {
-        select: () => query, eq: () => query, order: () => query,
+        select: () => query, eq: () => query, order: () => query, range: () => query,
         update(payload) { operation = { kind: 'update', payload }; return query; },
         insert(payload) { operation = { kind: 'insert', payload }; return query; },
         maybeSingle: async () => ({ data: table === 'admin_users' ? { user_id: 'admin' } : {
@@ -252,15 +258,20 @@ async function admin(metadata) {
     'next/navigation': { useRouter: () => ({ replace() {} }) },
     'next/image': { default: 'img' },
     '../CatalogNav': { default: () => null },
+    './BulkProducts': { default: () => null },
+    '@/lib/admin-products': adminProducts,
     '@/lib/supabase': { supabase: database },
     '@/lib/whatsapp-order': whatsapp,
-  }, { window: { scrollTo() {} } }).default;
+  }, { window: { scrollTo() {} }, crypto: { randomUUID: () => 'new-image' }, URL: { createObjectURL: () => 'blob:preview', revokeObjectURL() {} } }).default;
   const render = () => { cursor = 0; const tree = nodes(Component()); first = false; return tree; };
   render();
   effects.forEach(effect => effect());
   await new Promise(resolve => setImmediate(resolve));
   return {
-    render, writes,
+    render, writes, uploads, removals,
+    image() { render().find(n => n.type === 'input' && n.props.type === 'file').props.onChange({ target: { files: [{ name: 'new.png', type: 'image/png', size: 1024 }] } }); },
+    duplicate: () => render().find(n => n.type === 'button' && n.props.children === 'Duplicate').props.onClick(),
+    name(value) { render().find(n => n.type === 'input' && n.props.placeholder === 'e.g. Mobile Legends 86 Diamonds').props.onChange({ target: { value } }); },
     method: () => render().find(n => n.props?.id === 'order-method'),
     edit: () => render().find(n => n.type === 'button' && n.props.children === 'Edit').props.onClick(),
     save: () => render().find(n => n.type === 'form').props.onSubmit({ preventDefault() {} }),
@@ -293,4 +304,28 @@ test('Admin can opt an existing legacy product into WhatsApp without a schema ch
   assert.equal(a.writes.length, 1);
   assert.equal(a.writes[0].payload.metadata.order_method, 'whatsapp');
   assert.equal(a.writes[0].payload.metadata.campaign, 'keep me');
+});
+
+test('Admin Duplicate prefills settings, requires a new name, and inserts a new identity with preserved metadata', async () => {
+  const a = await admin({ order_method: 'whatsapp', campaign: 'keep me' });
+  a.duplicate();
+  assert.equal(a.method().props.value, 'whatsapp');
+  await a.save(); assert.equal(a.writes.length, 0);
+  a.name('Test product'); await a.save(); assert.equal(a.writes.length, 0);
+  a.name('New denomination'); await a.save();
+  assert.equal(a.writes.length, 1); assert.equal(a.writes[0].kind, 'insert');
+  const payload = a.writes[0].payload;
+  assert.equal(payload.name, 'New denomination'); assert.equal(payload.slug, 'new-denomination');
+  assert.equal(payload.sku, null); assert.equal('id' in payload, false);
+  assert.equal(payload.price, 8); assert.equal(payload.metadata.order_method, 'whatsapp');
+  assert.equal(payload.metadata.campaign, 'keep me');
+  assert.equal(payload.image_url, 'https://example.com/shared.png');
+});
+
+test('replacing an image saves its new URL and retains the old shared storage file', async () => {
+  const a = await admin({ order_method: 'whatsapp', campaign: 'keep me' });
+  a.edit(); a.image(); await a.save();
+  assert.equal(a.uploads.length, 1); assert.equal(a.writes.length, 2);
+  assert.equal(a.writes[1].payload.image_url, 'https://example.com/product-id/new-image.png');
+  assert.equal(a.removals.length, 0);
 });

@@ -4,36 +4,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import BulkProducts from "./BulkProducts";
+import { readAllProducts, duplicateProduct, exportProductsCsv, groupProducts, type AdminProduct as Product, type Game as Category, type ProductType } from "@/lib/admin-products";
 import CatalogNav from "../CatalogNav";
 import { supabase } from "@/lib/supabase";
 import { getOrderMethod, withOrderMethod, type OrderMethod } from "@/lib/whatsapp-order";
 
-type Category = {
-  id: string;
-  name: string;
-  is_active: boolean;
-};
-
-type ProductType = Category & { category_id: string };
-
-type Product = {
-  id: string;
-  category_id: string | null;
-  product_type_id: string | null;
-  name: string;
-  slug: string;
-  sku: string | null;
-  description: string | null;
-  image_url: string | null;
-  price: number;
-  compare_at_price: number | null;
-  stock_quantity: number | null;
-  track_stock: boolean;
-  is_active: boolean;
-  metadata: unknown;
-};
-
 const emptyForm = {
+  sort_order: "0",
   order_method: "normal_checkout" as OrderMethod,
   name: "",
   slug: "",
@@ -56,33 +34,6 @@ function generateSlug(value: string) {
     .replace(/^-|-$/g, "");
 }
 
-// Only return paths belonging to this product in our own public product-images bucket.
-function getProductImagePath(imageUrl: string | null, productId: string) {
-  if (!imageUrl) return null;
-
-  try {
-    const url = new URL(imageUrl);
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-    if (!supabaseUrl || url.host !== new URL(supabaseUrl).host) {
-      return null;
-    }
-
-    const prefix = "/storage/v1/object/public/product-images/";
-    if (!url.pathname.startsWith(prefix)) return null;
-
-    const path = decodeURIComponent(url.pathname.slice(prefix.length));
-
-    if (!path.startsWith(`${productId}/`) || path.includes("..")) {
-      return null;
-    }
-
-    return path;
-  } catch {
-    return null;
-  }
-}
-
 export default function ProductsPage() {
   const router = useRouter();
 
@@ -92,6 +43,7 @@ export default function ProductsPage() {
   const [form, setForm] = useState(emptyForm);
 
   const [loading, setLoading] = useState(true);
+  const [catalogReady, setCatalogReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -99,17 +51,22 @@ export default function ProductsPage() {
   const [slugEdited, setSlugEdited] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [duplicate, setDuplicate] = useState<ReturnType<typeof duplicateProduct> | null>(null);
+  const [filters, setFilters] = useState({ game: "", type: "", status: "", search: "", sort: "order" });
+  const groups = groupProducts(products, categories, productTypes, filters);
+
+  useEffect(() => () => { if (imagePreview?.startsWith("blob:")) URL.revokeObjectURL(imagePreview); }, [imagePreview]);
 
   async function loadData() {
     setError("");
 
     const [productResult, categoryResult, typeResult] = await Promise.all([
-      supabase
+      readAllProducts((from, to) => supabase
         .from("products")
         .select(
-          "id, category_id, product_type_id, name, slug, sku, description, image_url, price, compare_at_price, stock_quantity, track_stock, is_active, metadata"
+          "id, category_id, product_type_id, name, slug, sku, description, image_url, price, compare_at_price, stock_quantity, track_stock, is_active, metadata, sort_order"
         )
-        .order("created_at", { ascending: false }),
+        .order("id").range(from, to)),
 
       supabase
         .from("categories")
@@ -134,6 +91,7 @@ export default function ProductsPage() {
     }
 
     setLoading(false);
+    setCatalogReady(!productResult.error && !categoryResult.error && !typeResult.error);
   }
 
   useEffect(() => {
@@ -175,12 +133,14 @@ export default function ProductsPage() {
   }
 
   function startEditing(product: Product) {
+    setDuplicate(null);
     setEditingId(product.id);
     setSlugEdited(true);
     setImageFile(null);
     setImagePreview(product.image_url);
 
     setForm({
+      sort_order: product.sort_order == null ? "" : String(product.sort_order),
       order_method: getOrderMethod(product.metadata),
       name: product.name,
       slug: product.slug,
@@ -205,6 +165,7 @@ export default function ProductsPage() {
   }
 
   function cancelEditing() {
+    setDuplicate(null);
     setEditingId(null);
     setForm(emptyForm);
     setSlugEdited(false);
@@ -214,8 +175,24 @@ export default function ProductsPage() {
     setSuccess("");
   }
 
+  function startDuplicate(product: Product) {
+    const draft = duplicateProduct(product);
+    startEditing(product);
+    setEditingId(null);
+    setDuplicate(draft);
+    setSlugEdited(false);
+    setForm(previous => ({ ...previous, name: "", slug: "", sku: "" }));
+  }
+
+  function downloadCsv() {
+    const url = URL.createObjectURL(new Blob([exportProductsCsv(products)], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a"); link.href = url; link.download = "ruang-products-v1.csv";
+    link.click(); URL.revokeObjectURL(url);
+  }
+
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (saving) return;
 
     setSaving(true);
     setError("");
@@ -229,6 +206,15 @@ export default function ProductsPage() {
         ? null
         : Number(form.compare_at_price);
     const stockQuantity = Number(form.stock_quantity);
+    const sortOrder = form.sort_order.trim() ? Number(form.sort_order) : null;
+
+    if (sortOrder !== null && (!Number.isSafeInteger(sortOrder) || sortOrder < 0)) {
+      setError("Sort order must be a whole number of zero or more."); setSaving(false); return;
+    }
+    if (products.some(p => p.id !== editingId && (p.slug === cleanSlug ||
+      (duplicate && p.name.trim().toLowerCase() === cleanName.toLowerCase())))) {
+      setError("Please use a unique product name and URL slug."); setSaving(false); return;
+    }
 
     if (!cleanName || !cleanSlug) {
       setError("Please enter a product name.");
@@ -265,10 +251,7 @@ export default function ProductsPage() {
       return;
     }
 
-    // Remember the current image before changing the product.
-    // It will only be deleted after the replacement URL is saved successfully.
-    let previousImageUrl: string | null = null;
-    let previousMetadata: unknown = null;
+    let previousMetadata: unknown = duplicate?.metadata ?? null;
 
     if (editingId) {
       const { data: currentProduct, error: currentProductError } =
@@ -287,11 +270,12 @@ export default function ProductsPage() {
         return;
       }
 
-      previousImageUrl = currentProduct?.image_url ?? null;
       previousMetadata = currentProduct.metadata;
     }
 
     const productData = {
+      sort_order: sortOrder,
+      ...(!editingId && duplicate ? { image_url: duplicate.image_url } : {}),
       metadata: withOrderMethod(previousMetadata, form.order_method),
       name: cleanName,
       slug: cleanSlug,
@@ -343,8 +327,6 @@ export default function ProductsPage() {
       productId = data.id;
     }
 
-    let cleanupWarning = "";
-
     if (imageFile && productId) {
       const extension =
         imageFile.name.split(".").pop()?.toLowerCase() || "jpg";
@@ -387,35 +369,19 @@ export default function ProductsPage() {
         return;
       }
 
-      // The new image is now active in the database.
-      // Delete the previous image only if its URL is from our own bucket
-      // and belongs to this same product.
-      const previousImagePath = getProductImagePath(
-        previousImageUrl,
-        productId
-      );
-
-      if (previousImagePath && previousImagePath !== filePath) {
-        const { error: deleteError } = await supabase.storage
-          .from("product-images")
-          .remove([previousImagePath]);
-
-        if (deleteError) {
-          cleanupWarning =
-            " The new image is saved, but the previous image could not be deleted: " +
-            deleteError.message;
-        }
-      }
+      // Images can now be shared by other products. Retain old files rather than
+      // racing a client-side reference check against another admin's save.
     }
 
     setSuccess(
       (editingId
         ? "Product updated successfully."
-        : "Product added successfully.") + cleanupWarning
+        : "Product added successfully.")
     );
 
     setForm(emptyForm);
     setEditingId(null);
+    setDuplicate(null);
     setSlugEdited(false);
     setImageFile(null);
     setImagePreview(null);
@@ -450,11 +416,16 @@ export default function ProductsPage() {
           <p className="mt-2 text-sm text-white/50">
             Manage your store products, pricing and stock.
           </p>
+          <nav aria-label="Product management sections" className="mt-4 flex flex-wrap gap-4 text-sm underline underline-offset-4">
+            <a href="#product-catalog">Browse products</a>
+            <a href="#single-product-editor">Add / edit one product</a>
+            <a href="#bulk-tools">Bulk Add / CSV preview</a>
+          </nav>
         </div>
 
-        <div className="mt-10 rounded-2xl border border-white/10 bg-[#262626] p-6 md:p-8">
+        <div id="single-product-editor" className="mt-10 scroll-mt-4 rounded-2xl border border-white/10 bg-[#262626] p-6 md:p-8">
           <h2 className="text-xl font-bold">
-            {editingId ? "Edit product" : "Add new product"}
+            {editingId ? "Edit product" : duplicate ? "Duplicate product — enter a new name and slug" : "Add new product"}
           </h2>
 
           <p className="mt-1 text-sm text-white/40">
@@ -464,6 +435,7 @@ export default function ProductsPage() {
           </p>
 
           <form onSubmit={handleSave} className="mt-8 space-y-6">
+            <fieldset disabled={saving || !catalogReady} className="space-y-6">
             <div>
               <label className="mb-2 block text-sm font-bold">
                 Product image
@@ -613,6 +585,11 @@ export default function ProductsPage() {
                 />
               </div>
 
+              <label className="block text-sm font-bold">Sort order
+                <input aria-label="Sort order" type="number" min="0" step="1" value={form.sort_order} onChange={e => updateField("sort_order", e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-[#171717] px-4 py-3" />
+                <span className="mt-2 block text-xs font-normal text-white/50">Lower numbers appear first within the Game / Product Type. Blank keeps the order unset. Admin ties use name.</span>
+              </label>
+
               <div>
                 <label className="mb-2 block text-sm font-bold">
                   Selling price (BND) *
@@ -734,7 +711,7 @@ export default function ProductsPage() {
                     : "Add Product"}
               </button>
 
-              {editingId && (
+              {(editingId || duplicate) && (
                 <button
                   type="button"
                   onClick={cancelEditing}
@@ -744,15 +721,40 @@ export default function ProductsPage() {
                 </button>
               )}
             </div>
+            </fieldset>
           </form>
         </div>
 
-        <div className="mt-10 rounded-2xl border border-white/10 bg-[#262626] p-6 md:p-8">
+        {!loading && !catalogReady && <button type="button" onClick={() => { void loadData(); }} className="mt-6 rounded-lg border border-white/20 px-4 py-3">Retry catalog loading</button>}
+        {catalogReady && <BulkProducts products={products} games={categories} types={productTypes} onCreated={loadData} />}
+
+        <div id="product-catalog" className="mt-10 scroll-mt-4 rounded-2xl border border-white/10 bg-[#262626] p-6 md:p-8">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-lg font-bold">All products</h2>
             <span className="text-xs text-white/40">
               {products.length} products
             </span>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <label className="text-sm">Game<select aria-label="Filter Game" className="mt-1 w-full rounded-lg bg-[#171717] p-3" value={filters.game} onChange={e => setFilters(f => ({ ...f, game: e.target.value, type: "" }))}>
+              <option value="">All games</option>{categories.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select></label>
+            <label className="text-sm">Product Type<select aria-label="Filter Product Type" className="mt-1 w-full rounded-lg bg-[#171717] p-3" value={filters.type} onChange={e => setFilters(f => ({ ...f, type: e.target.value }))}>
+              <option value="">All types</option>{productTypes.filter(t => !filters.game || t.category_id === filters.game).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select></label>
+            <label className="text-sm">Status<select className="mt-1 w-full rounded-lg bg-[#171717] p-3" value={filters.status} onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}>
+              <option value="">All statuses</option><option value="active">Active</option><option value="hidden">Hidden</option><option value="sold_out">Sold Out</option>
+            </select></label>
+            <label className="text-sm">Search<input type="search" className="mt-1 w-full rounded-lg bg-[#171717] p-3" placeholder="Name, slug, SKU…" value={filters.search} onChange={e => setFilters(f => ({ ...f, search: e.target.value }))} /></label>
+            <label className="text-sm">Sort within type<select className="mt-1 w-full rounded-lg bg-[#171717] p-3" value={filters.sort} onChange={e => setFilters(f => ({ ...f, sort: e.target.value }))}>
+              <option value="order">Product sort order</option><option value="price_asc">Price: low to high</option><option value="price_desc">Price: high to low</option>
+            </select></label>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <button type="button" onClick={() => setFilters({ game: "", type: "", status: "", search: "", sort: "order" })} className="rounded-lg border border-white/20 px-4 py-3 text-sm">Clear filters</button>
+            <button type="button" disabled={!catalogReady} onClick={downloadCsv} className="rounded-lg border border-white/20 px-4 py-3 text-sm disabled:opacity-50">Export all products (CSV)</button>
+            <p className="text-sm text-white/60" role="status">{groups.reduce((count, g) => count + g.products.length, 0)} shown / {products.length} total</p>
           </div>
 
           {loading ? (
@@ -769,100 +771,23 @@ export default function ProductsPage() {
               </p>
             </div>
           ) : (
-            <div className="mt-6 overflow-x-auto">
-              <table className="w-full min-w-[750px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-white/10 text-xs uppercase tracking-wider text-white/40">
-                    <th className="pb-4">Product</th>
-                    <th className="pb-4">Game / Product Type</th>
-                    <th className="pb-4">SKU</th>
-                    <th className="pb-4">Price</th>
-                    <th className="pb-4">Stock</th>
-                    <th className="pb-4">Status</th>
-                    <th className="pb-4">Action</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {products.map((product) => {
-                    const category = categories.find(
-                      (item) => item.id === product.category_id
-                    );
-
-                    return (
-                      <tr
-                        key={product.id}
-                        className="border-b border-white/5"
-                      >
-                        <td className="py-5">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-[#171717]">
-                              {product.image_url ? (
-                                <Image
-                                  width={48}
-                                  height={48}
-                                  unoptimized
-                                  src={product.image_url}
-                                  alt={product.name}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <span className="text-[9px] text-white/30">
-                                  No image
-                                </span>
-                              )}
-                            </div>
-                            <span className="font-bold">{product.name}</span>
-                          </div>
-                        </td>
-                        <td className="py-5 text-white/50">
-                          {category?.name ?? "—"}
-                          <span className="mt-1 block text-xs">{productTypes.find((type) => type.id === product.product_type_id)?.name ?? "Untyped"}</span>
-                        </td>
-                        <td className="py-5 text-white/50">
-                          {product.sku || "—"}
-                        </td>
-                        <td className="py-5">
-                          BND {Number(product.price).toFixed(2)}
-                        </td>
-                        <td className="py-5">
-                          {product.track_stock
-                            ? product.stock_quantity ?? 0
-                            : "Not tracked"}
-                        </td>
-                        <td className="py-5">
-  <span
-    className={
-      !product.is_active
-        ? "text-white/40"
-        : product.track_stock &&
-            (product.stock_quantity ?? 0) <= 0
-          ? "text-red-400"
-          : "text-[#C6F36B]"
-    }
-  >
-    {!product.is_active
-      ? "Hidden"
-      : product.track_stock &&
-          (product.stock_quantity ?? 0) <= 0
-        ? "Sold Out"
-        : "Active"}
-  </span>
-</td>
-                        <td className="py-5">
-                          <button
-                            type="button"
-                            onClick={() => startEditing(product)}
-                            className="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold transition hover:border-[#C6F36B] hover:text-[#C6F36B]"
-                          >
-                            Edit
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="mt-6 space-y-6">
+              {groups.length === 0 && <p role="status">No products match these filters.</p>}
+              {groups.map(group => <section key={group.key} className="space-y-3" aria-label={group.game + " / " + group.type}>
+                <h3 className="border-b border-white/20 pb-3 font-bold">{group.game} → {group.type} <span className="text-sm font-normal text-white/50">({group.products.length})</span></h3>
+                {group.products.map(product => <article key={product.id} className="flex flex-col gap-3 rounded-xl border border-white/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  {product.image_url && <Image width={48} height={48} unoptimized src={product.image_url} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" />}
+                  <div className="min-w-0">
+                    <h4 className="break-words font-bold">{product.name}</h4>
+                    <p className="mt-1 break-words text-sm text-white/60">{product.sku || "No SKU"} · BND {Number(product.price).toFixed(2)} · {product.track_stock ? "Stock: " + (product.stock_quantity ?? 0) : "Stock not tracked"}</p>
+                    <p className="mt-1 text-xs text-white/60">Order {product.sort_order ?? "unset"} · {!product.is_active ? "Hidden" : product.track_stock && (product.stock_quantity ?? 0) <= 0 ? "Sold Out" : "Active"} · {getOrderMethod(product.metadata) === "whatsapp" ? "WhatsApp Order" : "Normal Checkout"}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <button type="button" disabled={saving} onClick={() => startEditing(product)} className="rounded-lg border border-white/20 px-4 py-3 text-sm font-bold disabled:opacity-50">Edit</button>
+                    <button type="button" disabled={saving} onClick={() => startDuplicate(product)} className="rounded-lg border border-white/20 px-4 py-3 text-sm font-bold disabled:opacity-50">Duplicate</button>
+                  </div>
+                </article>)}
+              </section>)}
             </div>
           )}
         </div>
