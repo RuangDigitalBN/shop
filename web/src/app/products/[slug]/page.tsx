@@ -9,6 +9,7 @@ import { useCart } from "../../CartContext";
 import { getGameFields, validateGameFields } from "@/lib/game-fields";
 import { getOrderMethod, whatsappOrderUrl } from "@/lib/whatsapp-order";
 import StoreHeader from "../../StoreHeader";
+import ProductArtwork from "../../ProductArtwork";
 
 type Product = {
   id: string;
@@ -40,63 +41,74 @@ export default function ProductPage() {
   const [cartError, setCartError] = useState("");
 
   useEffect(() => {
+    let active = true;
     async function loadProduct() {
-      if (!slug) return;
+      try {
+        if (!slug) return;
 
-      setLoading(true);
-      setProduct(null);
-      setCategoryName("");
-      setError("");
-      setPlayerId("");
-      setZoneId("");
+        setLoading(true);
+        setProduct(null);
+        setCategoryName("");
+        setError("");
+        setPlayerId("");
+        setZoneId("");
+        setQuantity(1);
+        setCartMessage("");
+        setCartError("");
 
-      const { data, error } = await supabase
-        .from("products")
-        .select(
-          "id, name, slug, description, image_url, price, compare_at_price, track_stock, stock_quantity, category_id, product_type_id, metadata"
-        )
-        .eq("slug", slug)
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (error) {
-        setError("Unable to load this product. Please try again.");
-        setLoading(false);
-        return;
-      }
-
-      if (!data) {
-        setError("This product could not be found.");
-        setLoading(false);
-        return;
-      }
-
-      if (data.category_id && data.product_type_id) {
-        const [{ data: category, error: categoryError }, { data: productType, error: typeError }] = await Promise.all([supabase
-          .from("categories")
-          .select("name")
-          .eq("id", data.category_id)
+        const { data, error } = await supabase
+          .from("products")
+          .select(
+            "id, name, slug, description, image_url, price, compare_at_price, track_stock, stock_quantity, category_id, product_type_id, metadata"
+          )
+          .eq("slug", slug)
           .eq("is_active", true)
-          .maybeSingle(),
-          supabase.from("product_types").select("id").eq("id", data.product_type_id).eq("category_id", data.category_id).eq("is_active", true).maybeSingle(),
-        ]);
-        if (categoryError || typeError || !category || !productType) {
-          setProduct(null);
-          setError("This product is unavailable.");
+          .maybeSingle();
+
+        if (!active) return;
+
+        if (error) {
+          setError("Unable to load this product. Please try again.");
           setLoading(false);
           return;
         }
-        setProduct(data);
-        setCategoryName(category.name);
-      } else {
-        setProduct(null);
-        setError("This product is unavailable.");
-      }
 
-      setLoading(false);
+        if (!data) {
+          setError("This product could not be found.");
+          setLoading(false);
+          return;
+        }
+
+        if (data.category_id && data.product_type_id) {
+          const [{ data: category, error: categoryError }, { data: productType, error: typeError }] = await Promise.all([supabase
+            .from("categories")
+            .select("name")
+            .eq("id", data.category_id)
+            .eq("is_active", true)
+            .maybeSingle(),
+            supabase.from("product_types").select("id").eq("id", data.product_type_id).eq("category_id", data.category_id).eq("is_active", true).maybeSingle(),
+          ]);
+          if (!active) return;
+          if (categoryError || typeError || !category || !productType) {
+            setProduct(null);
+            setError("This product is unavailable.");
+            setLoading(false);
+            return;
+          }
+          setProduct(data);
+          setCategoryName(category.name);
+        } else {
+          setProduct(null);
+          setError("This product is unavailable.");
+        }
+
+      } catch {
+        if (active) { setProduct(null); setError("Unable to load this product. Please try again."); }
+      } finally { if (active) setLoading(false); }
     }
 
     loadProduct();
+    return () => { active = false; };
   }, [slug]);
 
   const fields = getGameFields(categoryName);
@@ -162,7 +174,7 @@ export default function ProductPage() {
 
 
         {loading ? (
-          <p className="py-20 text-center text-white/50">
+          <p role="status" className="py-20 text-center text-white/50">
             Loading product...
           </p>
         ) : error || !product ? (
@@ -170,25 +182,18 @@ export default function ProductPage() {
             <h1 className="text-2xl font-black uppercase">
               Product unavailable
             </h1>
-            <p className="mt-3 text-sm text-white/50">
+            <p role="alert" className="mt-3 text-sm text-white/50">
               {error || "This product could not be found."}
             </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-4">
+              <button type="button" onClick={() => window.location.reload()} className="store-action">Try again</button>
+              <Link href="/#games" className="store-action">Explore games</Link>
+            </div>
           </div>
         ) : (
           <div className="mt-7 grid items-start gap-5 md:grid-cols-[1fr_0.92fr] md:gap-8">
             <div className="relative overflow-hidden rounded-[22px] border border-white/10 bg-[#191A1F] shadow-[0_20px_70px_rgba(0,0,0,0.2)]">
-              {product.image_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={product.image_url}
-                  alt={product.name}
-                  className="aspect-[4/3] w-full object-cover md:aspect-square"
-                />
-              ) : (
-                <div className="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-[#7137B8]/15 via-[#191A1F] to-[#C6F36B]/10 text-6xl font-black italic text-white/15 md:aspect-square">
-                  {product.name.slice(0, 3).toUpperCase()}
-                </div>
-              )}
+              <ProductArtwork src={product.image_url} name={product.name} loading="eager" />
             </div>
 
             <div className="rounded-[22px] border border-white/10 bg-[#191A1F] p-5 sm:p-6">
@@ -306,7 +311,7 @@ export default function ProductPage() {
                 </div>
 
                 {cartMessage && (
-                  <div className="rounded-xl border border-[#C6F36B]/20 bg-[#C6F36B]/10 p-4 text-sm text-[#C6F36B]">
+                  <div role="status" className="rounded-xl border border-[#C6F36B]/20 bg-[#C6F36B]/10 p-4 text-sm text-[#C6F36B]">
                     {cartMessage}
                     <Link
                       href="/cart"
@@ -318,7 +323,7 @@ export default function ProductPage() {
                 )}
 
                 {cartError && (
-                  <p className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
+                  <p role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
                     {cartError}
                   </p>
                 )}

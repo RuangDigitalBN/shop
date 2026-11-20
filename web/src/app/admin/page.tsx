@@ -189,7 +189,7 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <main className="min-h-screen bg-[#171717] text-[#F2F0E9]">
+    <main className="admin-polish min-h-screen bg-[#171717] text-[#F2F0E9]">
       <header className="flex items-center justify-between border-b border-white/10 px-5 py-5 sm:px-8 lg:px-10">
         <Link href="/" className="text-xl font-black italic">
           RUANG<span className="text-[#C6F36B]">.</span>
@@ -237,7 +237,7 @@ export default function AdminDashboard() {
               </p>
 
               <p className="mt-4 break-words text-2xl font-black tracking-tight sm:text-3xl">
-                {loadingStats ? "..." : item.value}
+                {loadingStats ? "..." : statsError ? "—" : item.value}
               </p>
 
               <p className="mt-2 text-xs text-white/40">
@@ -248,7 +248,7 @@ export default function AdminDashboard() {
         </div>
 
         {statsError && (
-          <div className="mt-5 rounded-xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-300">
+          <div role="alert" className="mt-5 rounded-xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-300">
             {statsError}
           </div>
         )}
@@ -277,7 +277,7 @@ export default function AdminDashboard() {
                   <h3 className="text-lg font-bold transition group-hover:text-[#C6F36B]">
                     {item.title}
                   </h3>
-                  <span className="text-lg text-white/30 transition group-hover:translate-x-1 group-hover:text-[#C6F36B]">
+                  <span aria-hidden="true" className="text-lg text-white/30 transition group-hover:translate-x-1 group-hover:text-[#C6F36B]">
                     →
                   </span>
                 </div>

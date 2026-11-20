@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { SectionHeading, StoreStatus } from "./StoreUI";
 import StoreIcon from "./StoreIcons";
+import ProductArtwork from "./ProductArtwork";
 import { getGameFields } from "@/lib/game-fields";
 import { supabase } from "@/lib/supabase";
 
@@ -33,13 +34,6 @@ type Product = {
   sort_order: number | null;
 };
 
-const productGradients = [
-  "from-[#7861cf] to-[#292044]",
-  "from-[#c27b3c] to-[#49301e]",
-  "from-[#d65a37] to-[#54251f]",
-  "from-[#4779a5] to-[#202e43]",
-];
-
 function formatPrice(price: number | string) {
   return `BND ${Number(price).toFixed(2)}`;
 }
@@ -51,20 +45,22 @@ export function GamesSection() {
 
   useEffect(() => {
     async function loadGames() {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("*")
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true })
-        .order("name", { ascending: true });
+      try {
+        const { data, error } = await supabase
+          .from("categories")
+          .select("id, name, slug, description, image_url")
+          .eq("is_active", true)
+          .order("sort_order", { ascending: true })
+          .order("name", { ascending: true });
 
-      if (error) {
-        setError("Unable to load games right now.");
-      } else {
-        setGames(data ?? []);
-      }
+        if (error) {
+          setError("Unable to load games right now.");
+        } else {
+          setGames(data ?? []);
+        }
 
-      setLoading(false);
+      } catch { setError("Unable to load games right now."); }
+      finally { setLoading(false); }
     }
 
     loadGames();
@@ -79,7 +75,7 @@ export function GamesSection() {
       ) : error ? (
         <StoreStatus error>{error} <button type="button" onClick={() => window.location.reload()}>Try again →</button></StoreStatus>
       ) : games.length === 0 ? (
-        <p className="rounded-2xl border border-white/10 bg-[#202020] p-6 text-sm text-white/45">
+        <p role="status" className="rounded-2xl border border-white/10 bg-[#202020] p-6 text-sm text-white/45">
           No games are available at the moment. Please check back soon.
         </p>
       ) : (
@@ -103,36 +99,38 @@ export function PopularProductsSection({ gameSlug }: { gameSlug?: string } = {})
 
   useEffect(() => {
     async function loadStorefront() {
-      const [productsResult, categoriesResult, typesResult] = await Promise.all([
-        supabase
-          .from("products")
-          .select(
-  "id, name, slug, category_id, product_type_id, description, image_url, price, compare_at_price, track_stock, stock_quantity, sort_order"
-          )
-          .eq("is_active", true)
-          .order("sort_order", { ascending: true })
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("categories")
-          .select("id, name, slug, description, image_url")
-          .eq("is_active", true).order("sort_order").order("name"),
-        supabase.from("product_types").select("id, category_id, name, slug").eq("is_active", true).order("sort_order").order("name"),
-      ]);
+      try {
+        const [productsResult, categoriesResult, typesResult] = await Promise.all([
+          supabase
+            .from("products")
+            .select(
+    "id, name, slug, category_id, product_type_id, description, image_url, price, compare_at_price, track_stock, stock_quantity, sort_order"
+            )
+            .eq("is_active", true)
+            .order("sort_order", { ascending: true })
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("categories")
+            .select("id, name, slug, description, image_url")
+            .eq("is_active", true).order("sort_order").order("name"),
+          supabase.from("product_types").select("id, category_id, name, slug").eq("is_active", true).order("sort_order").order("name"),
+        ]);
 
-      if (productsResult.error || categoriesResult.error || typesResult.error) {
-        setError("Unable to load products right now.");
-      } else {
-        const activeGames = new Set((categoriesResult.data ?? []).map((game) => game.id));
-        const activeTypes = new Map((typesResult.data ?? []).map((type) => [type.id, type]));
-        setProducts((productsResult.data ?? []).filter((product) =>
-          product.category_id && activeGames.has(product.category_id) &&
-          product.product_type_id && activeTypes.get(product.product_type_id)?.category_id === product.category_id
-        ));
-        setProductTypes(typesResult.data ?? []);
-        setCategories(categoriesResult.data ?? []);
-      }
+        if (productsResult.error || categoriesResult.error || typesResult.error) {
+          setError("Unable to load products right now.");
+        } else {
+          const activeGames = new Set((categoriesResult.data ?? []).map((game) => game.id));
+          const activeTypes = new Map((typesResult.data ?? []).map((type) => [type.id, type]));
+          setProducts((productsResult.data ?? []).filter((product) =>
+            product.category_id && activeGames.has(product.category_id) &&
+            product.product_type_id && activeTypes.get(product.product_type_id)?.category_id === product.category_id
+          ));
+          setProductTypes(typesResult.data ?? []);
+          setCategories(categoriesResult.data ?? []);
+        }
 
-      setLoading(false);
+      } catch { setError("Unable to load products right now."); }
+      finally { setLoading(false); }
     }
 
     loadStorefront();
@@ -225,13 +223,13 @@ export function PopularProductsSection({ gameSlug }: { gameSlug?: string } = {})
       ) : error ? (
         <StoreStatus error>{error} <button type="button" onClick={() => window.location.reload()}>Try again →</button></StoreStatus>
       ) : searchedProducts.length === 0 ? (
-        <p className="rounded-2xl border border-white/10 bg-[#202020] p-6 text-sm text-white/45">
+        <p role="status" className="rounded-2xl border border-white/10 bg-[#202020] p-6 text-sm text-white/45">
           {query ? "No products match your search. Try another game or product." : "New products are coming soon. Please check back later."}
         </p>
       ) : (
 
 <div className="flex flex-col gap-3">
-  {searchedProducts.map((product, index) => {
+  {searchedProducts.map((product) => {
     const categoryName = product.category_id
       ? categoryNames.get(product.category_id)
       : undefined;
@@ -252,22 +250,9 @@ export function PopularProductsSection({ gameSlug }: { gameSlug?: string } = {})
         }`}
       >
         <div
-          className={`relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br ${
-            productGradients[index % productGradients.length]
-          } sm:h-14 sm:w-14`}
+          className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg sm:h-14 sm:w-14"
         >
-          {product.image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={product.image_url}
-              alt={product.name}
-              className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-            />
-          ) : (
-            <span className="text-2xl font-black italic text-white/25">
-              {product.name.slice(0, 3).toUpperCase()}
-            </span>
-          )}
+          <ProductArtwork src={product.image_url} name={product.name} />
         </div>
 
         <div className="store-product-info min-w-0 flex-1">

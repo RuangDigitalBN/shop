@@ -479,7 +479,7 @@ export default function CheckoutPage() {
     return (
       <main className="storefront store-checkout">
         <StoreHeader variant="checkout" />
-        <p className="store-container store-page-content">Loading checkout...</p>
+        <p className="store-container store-page-content" role="status">Loading checkout...</p>
       </main>
     );
   }

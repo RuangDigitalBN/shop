@@ -392,7 +392,7 @@ export default function ProductsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#171717] text-[#F2F0E9]">
+    <main className="admin-polish min-h-screen bg-[#171717] text-[#F2F0E9]">
       <header className="flex items-center justify-between border-b border-white/10 px-6 py-5 md:px-10">
         <a href="/admin" className="text-xl font-black italic">
           RUANG<span className="text-[#C6F36B]">.</span>
@@ -438,7 +438,7 @@ export default function ProductsPage() {
           <form onSubmit={handleSave} className="mt-8 space-y-6">
             <fieldset disabled={saving || !catalogReady} className="space-y-6">
             <div>
-              <label className="mb-2 block text-sm font-bold">
+              <label htmlFor="product-image" className="mb-2 block text-sm font-bold">
                 Product image
               </label>
 
@@ -460,6 +460,7 @@ export default function ProductsPage() {
 
                 <div>
                   <input
+                    id="product-image"
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
                     onChange={(e) => {
@@ -495,10 +496,11 @@ export default function ProductsPage() {
 
             <div className="grid gap-6 md:grid-cols-2">
               <div>
-                <label className="mb-2 block text-sm font-bold">
+                <label htmlFor="product-name" className="mb-2 block text-sm font-bold">
                   Product name *
                 </label>
                 <input
+                  id="product-name"
                   required
                   value={form.name}
                   onChange={(e) => {
@@ -515,10 +517,11 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-bold">
+                <label htmlFor="product-slug" className="mb-2 block text-sm font-bold">
                   URL slug *
                 </label>
                 <input
+                  id="product-slug"
                   required
                   value={form.slug}
                   onChange={(e) => {
@@ -534,10 +537,11 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-bold">
+                <label htmlFor="product-game" className="mb-2 block text-sm font-bold">
                   Game
                 </label>
                 <select
+                  id="product-game"
                   aria-label="Game"
                   required={form.is_active}
                   value={form.category_id}
@@ -575,10 +579,11 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-bold">
+                <label htmlFor="product-sku" className="mb-2 block text-sm font-bold">
                   SKU
                 </label>
                 <input
+                  id="product-sku"
                   value={form.sku}
                   onChange={(e) => updateField("sku", e.target.value)}
                   placeholder="Optional product code"
@@ -592,10 +597,11 @@ export default function ProductsPage() {
               </label>
 
               <div>
-                <label className="mb-2 block text-sm font-bold">
+                <label htmlFor="product-price" className="mb-2 block text-sm font-bold">
                   Selling price (BND) *
                 </label>
                 <input
+                  id="product-price"
                   required
                   type="number"
                   min="0"
@@ -608,10 +614,11 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-bold">
+                <label htmlFor="product-compare-price" className="mb-2 block text-sm font-bold">
                   Original price (BND)
                 </label>
                 <input
+                  id="product-compare-price"
                   type="number"
                   min="0"
                   step="0.01"
@@ -629,10 +636,11 @@ export default function ProductsPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-bold">
+              <label htmlFor="product-description" className="mb-2 block text-sm font-bold">
                 Product description
               </label>
               <textarea
+                id="product-description"
                 rows={4}
                 value={form.description}
                 onChange={(e) =>
@@ -645,10 +653,11 @@ export default function ProductsPage() {
 
             <div className="grid gap-6 md:grid-cols-2">
               <div>
-                <label className="mb-2 block text-sm font-bold">
+                <label htmlFor="product-stock" className="mb-2 block text-sm font-bold">
                   Stock quantity
                 </label>
                 <input
+                  id="product-stock"
                   type="number"
                   min="0"
                   step="1"
@@ -688,13 +697,13 @@ export default function ProductsPage() {
             </div>
 
             {error && (
-              <p className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
+              <p role="alert" className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
                 {error}
               </p>
             )}
 
             {success && (
-              <p className="rounded-lg border border-[#C6F36B]/20 bg-[#C6F36B]/10 p-3 text-sm text-[#C6F36B]">
+              <p role="status" className="rounded-lg border border-[#C6F36B]/20 bg-[#C6F36B]/10 p-3 text-sm text-[#C6F36B]">
                 {success}
               </p>
             )}
@@ -761,7 +770,7 @@ export default function ProductsPage() {
           {!loading && <BulkEditProducts targets={groups.flatMap(group => group.products)} products={products} types={productTypes} disabled={!catalogReady || saving} onUpdated={loadData} />}
 
           {loading ? (
-            <p className="mt-8 text-sm text-white/50">
+            <p role="status" className="mt-8 text-sm text-white/50">
               Loading products...
             </p>
           ) : error && products.length === 0 ? (

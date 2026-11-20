@@ -1,0 +1,33 @@
+/* Small presentation fixes shared by the reviewed public/admin screens. */
+:is(.storefront, .request-page, .admin-polish),
+:is(.storefront, .request-page, .admin-polish) :is(h1, h2, h3, h4) {
+  font-family: var(--font-sora), sans-serif;
+}
+:is(.storefront, .request-page, .admin-polish) :is(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid #c6f36b;
+  outline-offset: 3px;
+}
+.admin-polish { overflow-wrap: anywhere; }
+.admin-polish :is(label, input, select, textarea) { min-width: 0; max-width: 100%; }
+.admin-polish :is(button, select, input:not([type=checkbox]):not([type=radio]):not([type=file])) { min-height: 44px; }
+.admin-polish label:has(> input[type=checkbox]) { min-height: 44px; }
+.admin-polish summary { padding-block: 12px; }
+.admin-polish :is(.text-white\/30, .text-white\/40) { color: #a5a6ab; }
+.product-artwork { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; overflow: hidden; background: linear-gradient(135deg, #32283f, #191a1f 65%, #273020); }
+.product-artwork img { width: 100%; height: 100%; object-fit: cover; }
+.product-artwork-monogram { color: #d4c5eb; font-size: clamp(14px, 4vw, 24px); font-weight: 650; letter-spacing: .05em; }
+.store-product .product-artwork { aspect-ratio: 4 / 3; }
+.store-product .product-artwork-monogram { font-size: clamp(48px, 10vw, 88px); }
+:is(.store-home, .store-game) .store-game-monogram { color: #c4a1ed66; }
+.storefront .store-search button { min-width: 44px; }
+.store-cart .commerce-quantity button { min-width: 44px; }
+@media (max-width: 639px) {
+  :is(.request-page, .admin-polish) :is(input:not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea),
+  .storefront .store-search input:not([type=file]) { font-size: 16px; }
+}
+@media (max-width: 767px) { .storefront .store-search { width: 44px; } }
+@media (max-width: 360px) {
+  .storefront .store-header-inner { gap: 8px; }
+  .storefront .store-header-actions { gap: 6px; }
+}
+@media (min-width: 768px) { .store-product .product-artwork { aspect-ratio: 1; } }

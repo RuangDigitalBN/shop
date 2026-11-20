@@ -32,6 +32,7 @@ const common = {
   '../StoreHeader': { default: () => null },
   '../StoreBrand': { default: () => null },
   '../StoreIcons': { default: () => null },
+  '../ProductArtwork': { default: ({ src }) => jsx.jsx('img', { src }) },
   'next/image': { default: 'img' },
   'next/link': { default: 'a' },
 };
@@ -44,8 +45,9 @@ test('cart keeps images, account details, totals and the existing quantity/remov
   assert.match(content(tree), /User ID\s*:\s*123456/);
   assert.match(content(tree), /Server ID\s*:\s*1234/);
   assert.match(content(tree), /BND\s+4.00/);
-  all.find(n => n.props['aria-label'] === 'Decrease quantity').props.onClick();
-  assert.equal(all.find(n => n.props['aria-label'] === 'Increase quantity').props.disabled, true);
+  all.find(n => n.props['aria-label'] === `Decrease quantity for ${item.name}`).props.onClick();
+  assert.equal(all.find(n => n.props['aria-label'] === `Increase quantity for ${item.name}`).props.disabled, true);
+  assert.ok(all.some(n => n.props['aria-label'] === `Remove ${item.name} from cart`));
   all.find(n => n.type === 'button' && content(n) === 'Remove').props.onClick();
   all.find(n => n.type === 'button' && content(n) === 'Clear cart').props.onClick();
   assert.deepEqual(actions, [['quantity', 'cart-a', 1], ['remove', 'cart-a'], ['clear']]);

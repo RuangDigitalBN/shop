@@ -1,7 +1,7 @@
 
 "use client";
 
-import Image from "next/image";
+import ProductArtwork from "../ProductArtwork";
 import Link from "next/link";
 import { useCart } from "../CartContext";
 import { accountEntries } from "@/lib/game-fields";
@@ -83,20 +83,7 @@ export default function CartPage() {
                   className="store-cart-item flex flex-col gap-5 rounded-2xl border border-white/10 bg-[#191A1F] p-4 sm:flex-row sm:items-center sm:p-5"
                 >
                   <div className="store-cart-thumb h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-[#303030]">
-                    {item.imageUrl ? (
-                      <Image
-                        width={96}
-                        height={96}
-                        unoptimized
-                        src={item.imageUrl}
-                        alt={item.name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-white/30">
-                        No image
-                      </div>
-                    )}
+                    <ProductArtwork src={item.imageUrl} name={item.name} />
                   </div>
 
                   <div className="commerce-cart-details min-w-0 flex-1">
@@ -114,7 +101,7 @@ export default function CartPage() {
                     <div className="commerce-item-controls mt-4 flex flex-wrap items-center gap-3">
                       <div className="commerce-quantity flex items-center overflow-hidden rounded-lg border border-white/10">
                         <button
-                          type="button" aria-label="Decrease quantity"
+                          type="button" aria-label={`Decrease quantity for ${item.name}`}
                           onClick={() =>
                             updateQuantity(item.cartItemId, item.quantity - 1)
                           }
@@ -129,7 +116,7 @@ export default function CartPage() {
                         </span>
 
                         <button
-                          type="button" aria-label="Increase quantity"
+                          type="button" aria-label={`Increase quantity for ${item.name}`}
                           onClick={() =>
                             updateQuantity(item.cartItemId, item.quantity + 1)
                           }
@@ -145,6 +132,7 @@ export default function CartPage() {
 
                       <button
                         type="button"
+                        aria-label={`Remove ${item.name} from cart`}
                         onClick={() => removeItem(item.cartItemId)}
                         className="commerce-remove text-xs font-bold text-red-400 transition hover:text-red-300"
                       >

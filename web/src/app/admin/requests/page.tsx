@@ -27,7 +27,7 @@ export default function AdminRequestsPage() {
       const all: CustomerRequest[] = [];
       for (let from = 0; ; from += 500) {
         const { data, error } = await supabase.from("customer_requests").select(REQUEST_COLUMNS).order("created_at", { ascending: false }).order("id").range(from, from + 499);
-        if (error) throw new Error("Could not load requests. Check that the Phase 3 SQL has been applied, then retry.");
+        if (error) throw new Error("Unable to load requests. Please try again.");
         all.push(...data as CustomerRequest[] ?? []);
         if ((data?.length ?? 0) < 500) break;
       }
@@ -51,7 +51,7 @@ export default function AdminRequestsPage() {
 
   const groups = repeatedGameRequests(requests);
   const visible = requests.filter(r => (!filter || r.status === filter) && (!game || r.game_name && normalizedGameName(r.game_name) === game));
-  return <main className="min-h-screen bg-[#171717] px-5 py-8 text-[#F2F0E9] sm:px-8">
+  return <main className="admin-polish min-h-screen bg-[#171717] px-5 py-8 text-[#F2F0E9] sm:px-8">
     <div className="mx-auto max-w-5xl space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-4"><h1 className="text-3xl font-bold">Requests & feedback</h1><Link className="text-sm underline" href="/admin">Back to dashboard</Link></header>
       <p className="text-sm text-white/60">Review submissions and update their status. Counts reflect submissions, not unique people.</p>

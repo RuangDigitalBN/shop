@@ -68,6 +68,7 @@ async function page({ category = 'Roblox', type = 'robux', soldOut = false, meta
     } },
     '../../CartContext': { useCart: () => ({ addItem: item => { added.push(item); return { success: true }; } }) },
     '../../StoreHeader': { default: () => null },
+    '../../ProductArtwork': { default: 'product-artwork' },
     '@/lib/game-fields': fields,
     '@/lib/whatsapp-order': whatsapp,
   }, { window: { open: (...args) => opened.push(args) } }).default;
@@ -340,4 +341,14 @@ test('Admin passes only its currently filtered products to Bulk Edit', async () 
   assert.equal(targets().length, 0);
   search.props.onChange({ target: { value: 'Test product' } });
   assert.equal(targets().length, 1); assert.equal(targets()[0].id, 'product-id');
+});
+
+test('single-product editor associates visible labels with its controls and announces validation errors', async () => {
+  const a = await admin({});
+  for (const id of ['product-image', 'product-name', 'product-slug', 'product-game', 'product-sku', 'product-price', 'product-compare-price', 'product-description', 'product-stock']) {
+    const tree = a.render();
+    assert.equal(tree.filter(n => n.props?.id === id).length, 1);
+    assert.ok(tree.some(n => n.type === 'label' && n.props.htmlFor === id));
+  }
+  await a.save(); assert.ok(a.render().some(n => n.props?.role === 'alert'));
 });

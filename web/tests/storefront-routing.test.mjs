@@ -33,13 +33,14 @@ async function render({ slug, query = '', component = 'PopularProductsSection', 
   let cursor = 0, mounted = false;
   const imports = {
     'react/jsx-runtime': jsx,
-    'next/link': { default: (props) => jsx.jsx('a', props) },
+    'next/link': { default: (props) => { const rest = { ...props }; delete rest.key; return jsx.jsx('a', rest); } },
     'next/navigation': { useSearchParams: () => new URLSearchParams(query) },
     './StoreUI': {
       SectionHeading: ({ children, action }) => jsx.jsxs('header', { children: [children, action] }),
       StoreStatus: ({ children, error }) => jsx.jsx('p', { role: error ? 'alert' : 'status', children }),
     },
     './StoreIcons': { default: () => null },
+    './ProductArtwork': { default: ({ src }) => src ? jsx.jsx('img', { src }) : null },
     '@/lib/game-fields': { getGameFields: () => [{ label: 'User ID' }, { label: 'Server ID' }] },
     '@/lib/supabase': { supabase: { from(table) {
       reads.push(table);

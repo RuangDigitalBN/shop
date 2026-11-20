@@ -3,6 +3,7 @@ import { Manrope, Space_Grotesk, Geist_Mono, Sora } from "next/font/google";
 import "./globals.css";
 import "./storefront-premium.css";
 import "./commerce-premium.css";
+import "./final-polish.css";
 import { CartProvider } from "./CartContext";
 
 const sora = Sora({ variable: "--font-sora", subsets: ["latin"], display: "swap" });

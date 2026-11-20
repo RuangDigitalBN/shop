@@ -223,6 +223,7 @@ for (const [game, labels, primary, server, keys] of games) {
       '@/lib/supabase': {},
       '../../CartContext': { useCart: () => ({ addItem() {} }) },
       '../../StoreHeader': { default: () => null },
+      '../../ProductArtwork': { default: 'product-artwork' },
       '@/lib/game-fields': fields,
       '@/lib/whatsapp-order': orderMethod,
     });
