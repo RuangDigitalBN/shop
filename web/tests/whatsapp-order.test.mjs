@@ -259,6 +259,7 @@ async function admin(metadata) {
     'next/image': { default: 'img' },
     '../CatalogNav': { default: () => null },
     './BulkProducts': { default: () => null },
+    './BulkEditProducts': { default: 'bulk-edit-tools' },
     '@/lib/admin-products': adminProducts,
     '@/lib/supabase': { supabase: database },
     '@/lib/whatsapp-order': whatsapp,
@@ -328,4 +329,15 @@ test('replacing an image saves its new URL and retains the old shared storage fi
   assert.equal(a.uploads.length, 1); assert.equal(a.writes.length, 2);
   assert.equal(a.writes[1].payload.image_url, 'https://example.com/product-id/new-image.png');
   assert.equal(a.removals.length, 0);
+});
+
+test('Admin passes only its currently filtered products to Bulk Edit', async () => {
+  const a = await admin({ campaign: 'keep me' });
+  const targets = () => a.render().find(n => n.type === 'bulk-edit-tools').props.targets;
+  assert.equal(targets().length, 1);
+  const search = a.render().find(n => n.type === 'input' && n.props.type === 'search');
+  search.props.onChange({ target: { value: 'no matching denomination' } });
+  assert.equal(targets().length, 0);
+  search.props.onChange({ target: { value: 'Test product' } });
+  assert.equal(targets().length, 1); assert.equal(targets()[0].id, 'product-id');
 });

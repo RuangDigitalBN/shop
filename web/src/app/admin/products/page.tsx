@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import BulkProducts from "./BulkProducts";
+import BulkEditProducts from "./BulkEditProducts";
 import { readAllProducts, duplicateProduct, exportProductsCsv, groupProducts, type AdminProduct as Product, type Game as Category, type ProductType } from "@/lib/admin-products";
 import CatalogNav from "../CatalogNav";
 import { supabase } from "@/lib/supabase";
@@ -756,6 +757,8 @@ export default function ProductsPage() {
             <button type="button" disabled={!catalogReady} onClick={downloadCsv} className="rounded-lg border border-white/20 px-4 py-3 text-sm disabled:opacity-50">Export all products (CSV)</button>
             <p className="text-sm text-white/60" role="status">{groups.reduce((count, g) => count + g.products.length, 0)} shown / {products.length} total</p>
           </div>
+
+          {!loading && <BulkEditProducts targets={groups.flatMap(group => group.products)} products={products} types={productTypes} disabled={!catalogReady || saving} onUpdated={loadData} />}
 
           {loading ? (
             <p className="mt-8 text-sm text-white/50">

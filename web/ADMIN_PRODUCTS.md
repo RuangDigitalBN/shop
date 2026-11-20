@@ -48,6 +48,44 @@ Image replacement no longer deletes old storage objects automatically. Another
 product or concurrent admin operation may still reference the old URL. Safe
 garbage collection is deferred; expect unused images to remain after replacement.
 
+## Bulk Edit (filtered products)
+
+The catalog's Bulk Edit tool targets the entire currently filtered product set.
+Without filters this is the entire catalog. The count is shown before review;
+sets above 100 require narrowing the filters and are never silently truncated.
+Every field defaults to Keep unchanged. Only a shared image, active/inactive
+status, order method and optional description replacement can be changed.
+Description replacement requires opting in and entering nonblank text. Blank or
+untouched text never clears descriptions, even when another field is changed.
+
+Choose changes, select Review changes, inspect the count, affected names and change
+summary, then explicitly Confirm and apply. Review performs no upload or write.
+Changing an input cancels its review. Changing the filtered target IDs prevents
+application until reviewed again. IDs are frozen at confirmation, so later filter
+changes cannot expand an operation that is already running.
+
+Choose an existing image or upload one PNG/JPEG/WebP up to 5 MB. The upload happens
+once at confirmation and its exact public URL is reused for every target. Existing
+image selection performs no upload. Old image files are never deleted. A failure
+after upload can leave an unused stored file; the result displays its URL when known.
+
+The complete target set is checked before uploading or writing. Activation rejects
+products lacking a Game/matching Product Type. Updates write only opted-in fields;
+names, prices, stock, IDs, grouping and sort order are never included in a payload.
+An order-method change reads each product's current metadata immediately before
+saving and merges only order_method using the same helper as single-product edits.
+If order method is unchanged, metadata is not written at all. As with existing
+single edits, a concurrent metadata edit between that read and save can still race;
+this tool does not add a database transaction or server-side JSON merge function.
+
+Each update requests a returned ID to verify that the row was actually saved.
+Updates are sequential, not an atomic transaction across the entire batch. A read,
+save, missing-row, policy or network failure stops the operation. The result reports
+confirmed saves, the unconfirmed product (if applicable) and how many were not
+attempted. No rollback or automatic retry is performed. The tool locks after any
+confirmation attempt, including a preflight/upload failure; reload and check the
+catalog before another edit. This also prevents repeated clicks from repeating writes.
+
 ## CSV v1
 
 Export always includes **all loaded products**, independent of filters, using these
