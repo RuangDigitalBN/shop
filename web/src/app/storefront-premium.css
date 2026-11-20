@@ -111,3 +111,21 @@
 /* Slim visual action inside the existing full-row product link. */
 :is(.store-home, .store-game) .store-row-action { min-height: 32px; padding-inline: 12px; border-radius: 8px; font-size: 12px; gap: 5px; }
 :is(.store-home, .store-game) .store-row-action svg { width: 15px; height: 15px; }
+
+/* Quiet request discovery between the approved catalog sections. */
+.storefront .store-request-cta { padding-block: 20px 4px; }
+.storefront .store-request-card {
+  display: flex; flex-direction: column; align-items: stretch; gap: 20px;
+  padding: 24px; border: 1px solid #c4a1ed26; border-radius: 18px;
+  background: radial-gradient(ellipse at top right, #7137b81a, transparent 65%), #191a1e;
+}
+.storefront .store-request-copy { min-width: 0; }
+.storefront .store-request-copy h2 { font-family: var(--font-sora), sans-serif; font-size: 22px; font-weight: 600; line-height: 1.35; letter-spacing: -.035em; color: #f5f3eb; }
+.storefront .store-request-copy p { max-width: 520px; margin-top: 8px; color: #b4b5bb; font-size: 13px; line-height: 1.8; }
+.storefront .store-request-card .store-action { min-height: 44px; gap: 10px; padding: 12px 18px; border-radius: 10px; font-size: 13px; font-weight: 650; text-transform: none; flex-shrink: 0; }
+.storefront .store-request-cta-compact { padding-block: 16px 24px; }
+.storefront .store-request-cta-compact .store-request-card { padding: 20px; gap: 16px; }
+.storefront .store-request-cta-compact h2 { font-size: 18px; }
+@media (min-width: 640px) {
+  .storefront .store-request-card { flex-direction: row; align-items: center; justify-content: space-between; }
+}

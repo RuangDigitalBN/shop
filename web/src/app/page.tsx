@@ -5,6 +5,7 @@ import { GamesSection, PopularProductsSection } from "./StoreSections";
 import StoreHeader from "./StoreHeader";
 import StoreBrand from "./StoreBrand";
 import { StoreStatus } from "./StoreUI";
+import RequestGameCta from "./RequestGameCta";
 
 export default function Home() {
   return (
@@ -19,6 +20,7 @@ export default function Home() {
         <p className="store-hero-note">Local support. A space you can trust.</p></div>
       </section>
       <GamesSection />
+      <RequestGameCta />
       <Suspense fallback={<div className="store-container"><StoreStatus>Loading products...</StoreStatus></div>}><PopularProductsSection /></Suspense>
       <section className="store-trust store-container" aria-label="Shopping with Ruang Digital">
         {[["bolt", "Fast Checkout", "Simple steps to place your order"], ["shield", "Secure Payment", "Safe and trusted checkout"], ["support", "Local Support", "Real support, close to home"]].map(([icon, title, copy]) => <div key={title}><StoreIcon name={icon} size={32} /><div><h2>{title}</h2><p>{copy}</p></div></div>)}
